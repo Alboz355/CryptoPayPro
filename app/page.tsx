@@ -6,8 +6,8 @@ import { Toaster } from "sonner"
 import { OnboardingPage } from "@/components/onboarding-page"
 import { PinSetupPage } from "@/components/pin-setup-page"
 import { EnhancedDashboard } from "@/components/enhanced-dashboard"
-import { SendPage } from "@/components/send-page"
-import { ReceivePage } from "@/components/receive-page"
+import { EnhancedSendPage } from "@/components/enhanced-send-page"
+import { EnhancedReceivePage } from "@/components/enhanced-receive-page"
 import { TransactionHistory } from "@/components/transaction-history"
 import { SettingsPage } from "@/components/settings-page"
 import { ErrorBoundary } from "@/components/error-boundary"
@@ -43,9 +43,9 @@ export default function CryptoWalletApp() {
       case "dashboard":
         return <EnhancedDashboard onNavigate={setCurrentPage} />
       case "send":
-        return <SendPage onNavigate={setCurrentPage} />
+        return <EnhancedSendPage onNavigate={setCurrentPage} />
       case "receive":
-        return <ReceivePage onNavigate={setCurrentPage} />
+        return <EnhancedReceivePage onNavigate={setCurrentPage} />
       case "history":
         return <TransactionHistory onNavigate={setCurrentPage} />
       case "settings":
