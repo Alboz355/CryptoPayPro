@@ -29,6 +29,7 @@ export const DERIVATION_PATHS = {
   BTC_SEGWIT: "m/84'/0'/0'/0", // Bitcoin SegWit Bech32 (Trust Wallet par défaut)
   BTC_LEGACY: "m/44'/0'/0'/0", // Bitcoin Legacy P2PKH
   ETH: "m/44'/60'/0'/0", // Ethereum
+  POLYGON: "m/44'/60'/0'/0", // Polygon (same as Ethereum)
   ALGO: "m/44'/283'/0'/0", // Algorand BIP44
 }
 
@@ -81,6 +82,11 @@ export class MultiCryptoWallet {
       console.log("Ξ Génération Ethereum (BIP44)...")
       const ethAccount = this.generateEthereum(masterSeed, 0)
       accounts.push(ethAccount)
+
+      // Polygon (same derivation as Ethereum)
+      console.log("⬛ Génération Polygon (BIP44)...")
+      const polygonAccount = this.generatePolygon(masterSeed, 0)
+      accounts.push(polygonAccount)
 
       // Algorand (NOUVELLE MÉTHODE REVERSE ENGINEERING)
       console.log("◈ Génération Algorand (Reverse Engineering)...")
@@ -186,7 +192,47 @@ export class MultiCryptoWallet {
     }
   }
 
-  // Algorand - REVERSE ENGINEERING TRUST WALLET (nouvelle approche complète)
+  // Polygon (BIP44) - Same as Ethereum derivation
+  private static generatePolygon(masterSeed: Uint8Array, accountIndex: number): CryptoAccount {
+    try {
+      console.log(`⬛ === POLYGON BIP44 (SAME AS ETHEREUM) ===`)
+
+      const masterKey = HDKey.fromMasterSeed(masterSeed)
+      const fullPath = `${DERIVATION_PATHS.POLYGON}/${accountIndex}`
+
+      console.log(`📍 Chemin de dérivation Polygon: ${fullPath}`)
+
+      const derivedKey = masterKey.derive(fullPath)
+
+      if (!derivedKey.privateKey) {
+        throw new Error("Impossible de dériver la clé privée Polygon")
+      }
+
+      const privateKeyHex = Buffer.from(derivedKey.privateKey).toString("hex")
+      const publicKeyHex = Buffer.from(derivedKey.publicKey!).toString("hex")
+
+      console.log(`🔐 Clé privée Polygon: ${privateKeyHex}`)
+      console.log(`🔓 Clé publique Polygon: ${publicKeyHex}`)
+
+      // Générer l'adresse Polygon (même format qu'Ethereum)
+      const address = this.generateEthereumAddress(derivedKey.privateKey)
+
+      console.log(`⬛ Adresse Polygon: ${address}`)
+
+      return {
+        symbol: "MATIC",
+        name: `Polygon ${accountIndex + 1}`,
+        address,
+        derivationPath: fullPath,
+        accountIndex,
+        privateKey: privateKeyHex,
+        publicKey: publicKeyHex,
+      }
+    } catch (error) {
+      console.error("❌ Erreur Polygon:", error)
+      throw error
+    }
+  }
   private static generateAlgorandReverseEngineering(
     masterSeed: Uint8Array,
     mnemonic: string,
@@ -608,6 +654,10 @@ export class MultiCryptoWallet {
       case "ETH":
         newAccount = this.generateEthereum(walletData.masterSeed, nextIndex)
         break
+      case "MATIC":
+      case "POLYGON":
+        newAccount = this.generatePolygon(walletData.masterSeed, nextIndex)
+        break
       case "ALGO":
         newAccount = this.generateAlgorandReverseEngineering(walletData.masterSeed, walletData.mnemonic, nextIndex)
         break
@@ -647,6 +697,9 @@ export class MultiCryptoWallet {
     try {
       switch (symbol) {
         case "ETH":
+          return /^0x[a-fA-F0-9]{40}$/.test(address)
+        case "MATIC":
+        case "POLYGON":
           return /^0x[a-fA-F0-9]{40}$/.test(address)
         case "BTC":
           // Valider Bech32 (bc1...) et Legacy (1... ou 3...)

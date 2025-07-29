@@ -1,99 +1,77 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
+import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "sonner"
 import { OnboardingPage } from "@/components/onboarding-page"
 import { PinSetupPage } from "@/components/pin-setup-page"
-import { MainDashboard } from "@/components/main-dashboard"
+import { EnhancedDashboard } from "@/components/enhanced-dashboard"
 import { SendPage } from "@/components/send-page"
 import { ReceivePage } from "@/components/receive-page"
 import { TransactionHistory } from "@/components/transaction-history"
 import { SettingsPage } from "@/components/settings-page"
-import { TPEDashboard } from "@/components/tpe-dashboard"
 import { ErrorBoundary } from "@/components/error-boundary"
-
-export type AppState =
-  | "onboarding"
-  | "pin-setup"
-  | "dashboard"
-  | "send"
-  | "receive"
-  | "history"
-  | "settings"
-  | "tpe"
-  | "tpe-search"
-  | "tpe-billing"
-  | "tpe-payment"
-  | "tpe-conversion"
-  | "tpe-history"
-  | "tpe-settings"
-  | "tpe-vat"
+import { useWalletStore } from "@/store/wallet-store"
 
 export default function CryptoWalletApp() {
-  const [currentPage, setCurrentPage] = useState<AppState>("onboarding")
-  const [walletData, setWalletData] = useState<any>(null)
-  const [pin, setPin] = useState<string>("")
+  const {
+    currentPage,
+    isWalletCreated,
+    isAuthenticated,
+    wallet,
+    pin,
+    setCurrentPage
+  } = useWalletStore()
 
-  // Simuler la vérification de l'état de l'app au démarrage
+  // Initialize app state
   useEffect(() => {
-    const savedWallet = localStorage.getItem("wallet")
-    const savedPin = localStorage.getItem("pin")
-
-    if (savedWallet && savedPin) {
-      setCurrentPage("dashboard")
-      setWalletData(JSON.parse(savedWallet))
-      setPin(savedPin)
+    if (isWalletCreated && pin && !isAuthenticated) {
+      setCurrentPage('pin-setup')
+    } else if (isWalletCreated && isAuthenticated && wallet) {
+      setCurrentPage('dashboard')
+    } else {
+      setCurrentPage('onboarding')
     }
-  }, [])
-
-  const handleWalletCreated = (wallet: any) => {
-    setWalletData(wallet)
-    localStorage.setItem("wallet", JSON.stringify(wallet))
-    setCurrentPage("pin-setup")
-  }
-
-  const handlePinCreated = (newPin: string) => {
-    setPin(newPin)
-    localStorage.setItem("pin", newPin)
-    setCurrentPage("dashboard")
-  }
-
-  const navigateTo = (page: AppState) => {
-    setCurrentPage(page)
-  }
+  }, [isWalletCreated, isAuthenticated, wallet, pin, setCurrentPage])
 
   const renderCurrentPage = () => {
     switch (currentPage) {
       case "onboarding":
-        return <OnboardingPage onWalletCreated={handleWalletCreated} />
+        return <OnboardingPage />
       case "pin-setup":
-        return <PinSetupPage onPinCreated={handlePinCreated} />
+        return <PinSetupPage />
       case "dashboard":
-        return <MainDashboard walletData={walletData} onNavigate={navigateTo} />
+        return <EnhancedDashboard onNavigate={setCurrentPage} />
       case "send":
-        return <SendPage onNavigate={navigateTo} />
+        return <SendPage onNavigate={setCurrentPage} />
       case "receive":
-        return <ReceivePage walletData={walletData} onNavigate={navigateTo} />
+        return <ReceivePage onNavigate={setCurrentPage} />
       case "history":
-        return <TransactionHistory onNavigate={navigateTo} />
+        return <TransactionHistory onNavigate={setCurrentPage} />
       case "settings":
-        return <SettingsPage onNavigate={navigateTo} />
-      case "tpe":
-      case "tpe-search":
-      case "tpe-billing":
-      case "tpe-payment":
-      case "tpe-conversion":
-      case "tpe-history":
-      case "tpe-settings":
-      case "tpe-vat":
-        return <TPEDashboard currentPage={currentPage} onNavigate={navigateTo} walletData={walletData} />
+        return <SettingsPage onNavigate={setCurrentPage} />
       default:
-        return <OnboardingPage onWalletCreated={handleWalletCreated} />
+        return <OnboardingPage />
     }
   }
 
   return (
-    <ErrorBoundary>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">{renderCurrentPage()}</div>
-    </ErrorBoundary>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <ErrorBoundary>
+        <div className="min-h-screen bg-background">
+          {renderCurrentPage()}
+        </div>
+        <Toaster 
+          position="top-right"
+          expand={false}
+          richColors
+        />
+      </ErrorBoundary>
+    </ThemeProvider>
   )
 }
