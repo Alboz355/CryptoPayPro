@@ -1,30 +1,64 @@
-# Crypto wallet app
+# Crypto Wallet App
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+This is a crypto wallet application built with Next.js, React, and Shadcn UI.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/leartshabija-4171s-projects/v0-crypto-wallet-app)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/0O6ZCQCCctl)
+## Features
 
-## Overview
+-   **Wallet Generation**: Generate new Bitcoin (SegWit), Ethereum, and Algorand wallets.
+-   **Wallet Import/Export**: Import wallets using 12/24-word mnemonic phrases.
+-   **PIN Security**: Secure your wallet with a PIN for sensitive operations.
+-   **Real-time Prices**: View real-time prices for BTC, ETH, ALGO.
+-   **Buy Crypto**: Integrate with Mt Pelerin for direct crypto purchases.
+-   **Responsive UI**: Optimized for iOS, Android, and desktop.
+-   **Dark Mode**: Full dark mode support.
+-   **Error Handling**: Comprehensive error boundaries and informative messages.
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+## Getting Started
 
-## Deployment
+1.  **Clone the repository**:
+    \`\`\`bash
+    git clone [repository-url]
+    cd crypto-wallet-app
+    \`\`\`
+2.  **Install dependencies**:
+    \`\`\`bash
+    npm install
+    # or
+    yarn install
+    # or
+    pnpm install
+    \`\`\`
+3.  **Run the development server**:
+    \`\`\`bash
+    npm run dev
+    # or
+    yarn dev
+    # or
+    pnpm dev
+    \`\`\`
+    Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-Your project is live at:
+## Project Structure
 
-**[https://vercel.com/leartshabija-4171s-projects/v0-crypto-wallet-app](https://vercel.com/leartshabija-4171s-projects/v0-crypto-wallet-app)**
+-   `app/`: Next.js App Router pages and layout.
+-   `components/`: Reusable React components, including UI components from Shadcn UI.
+-   `hooks/`: Custom React hooks.
+-   `lib/`: Utility functions and blockchain-related logic.
+-   `public/`: Static assets.
+-   `styles/`: Global CSS.
 
-## Build your app
+## Technologies Used
 
-Continue building your app on:
-
-**[https://v0.dev/chat/projects/0O6ZCQCCctl](https://v0.dev/chat/projects/0O6ZCQCCctl)**
-
-## How It Works
-
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+-   Next.js
+-   React
+-   TypeScript
+-   Tailwind CSS
+-   Shadcn UI
+-   `bip39` for mnemonic phrases
+-   `ethers` for Ethereum wallet generation
+-   `bech32` for Bitcoin SegWit addresses
+-   `@noble/hashes` for cryptographic hashing
+-   `@scure/base` for Base32 encoding
+-   `ed25519-hd-key` for Algorand key derivation
+-   CoinGecko API for real-time prices
+-   Mt Pelerin API for crypto purchases

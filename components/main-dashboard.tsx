@@ -1,327 +1,399 @@
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 import {
   Wallet,
   Send,
   Download,
-  History,
   Settings,
+  History,
   Eye,
   EyeOff,
   TrendingUp,
-  Copy,
-  ShoppingCart,
+  TrendingDown,
+  Bell,
   CreditCard,
+  Scan,
+  RefreshCw,
+  ArrowUpRight,
+  ArrowDownLeft,
 } from "lucide-react"
-import { useState, useEffect } from "react"
-import type { AppState } from "@/app/page"
-import { BlockchainManager, type BlockchainBalance } from "@/lib/blockchain-apis"
-import { RealTimePrices } from "@/components/real-time-prices"
-import { LoadingFallback } from "@/components/loading-fallback"
 import { CryptoList } from "@/components/crypto-list"
-import { MtPelerinWidget } from "@/components/mt-pelerin-widget"
+import { RealTimePrices } from "@/components/real-time-prices"
+import { NetworkSelector } from "@/components/network-selector"
+import type { AppState } from "@/app/page"
+import type { UserType } from "@/components/onboarding-page"
 
 interface MainDashboardProps {
-  walletData: any
   onNavigate: (page: AppState) => void
+  walletData: any
+  onShowMtPelerin: () => void
+  onShowPriceAlert: () => void
+  userType: UserType | null
 }
 
-export function MainDashboard({ walletData, onNavigate }: MainDashboardProps) {
-  const [showBalance, setShowBalance] = useState(true)
-  const [showMtPelerin, setShowMtPelerin] = useState(false)
-  const [mtPelerinAction, setMtPelerinAction] = useState<"buy" | "sell" | "swap">("buy")
+export function MainDashboard({
+  onNavigate,
+  walletData,
+  onShowMtPelerin,
+  onShowPriceAlert,
+  userType,
+}: MainDashboardProps) {
+  const [balanceVisible, setBalanceVisible] = useState(true)
+  const [selectedNetwork, setSelectedNetwork] = useState("mainnet")
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // États pour les données blockchain
-  const [blockchainBalances, setBlockchainBalances] = useState<BlockchainBalance[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
-
-  const blockchainManager = new BlockchainManager()
-
-  // Charger les données blockchain
-  const loadBlockchainData = async () => {
-    if (!walletData?.addresses) {
-      console.log("Pas d'adresses de portefeuille disponibles")
-      return
-    }
-
-    console.log("Chargement des données blockchain...")
-    console.log("Adresses:", walletData.addresses)
-    setIsLoading(true)
-
-    try {
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10000))
-
-      const balancesPromise = blockchainManager.getAllBalances({
-        eth: walletData.addresses.ethereum,
-        btc: walletData.addresses.bitcoin,
-      })
-
-      const balances = (await Promise.race([balancesPromise, timeoutPromise])) as BlockchainBalance[]
-
-      console.log("Soldes chargés:", balances)
-      setBlockchainBalances(balances)
-      setLastUpdate(new Date())
-    } catch (error) {
-      console.error("Erreur lors du chargement des données blockchain:", error)
-
-      if (blockchainBalances.length === 0) {
-        const defaultBalances: BlockchainBalance[] = [
-          { symbol: "ETH", balance: "0.000000", balanceUSD: "0.00", address: walletData.addresses.ethereum },
-          { symbol: "BTC", balance: "0.00000000", balanceUSD: "0.00", address: walletData.addresses.bitcoin },
-          { symbol: "USDT", balance: "0.00", balanceUSD: "0.00", address: walletData.addresses.ethereum },
-        ]
-        setBlockchainBalances(defaultBalances)
-      }
-    } finally {
-      setIsLoading(false)
-    }
+  // Données de démonstration pour le portfolio
+  const portfolioData = {
+    totalBalance: "1,247.85",
+    totalBalanceUSD: "1,247.85",
+    change24h: "+5.2",
+    changePercent: "+2.1%",
+    cryptos: [
+      {
+        symbol: "BTC",
+        name: "Bitcoin",
+        balance: "0.00125000",
+        fiatValue: "52.50",
+        change: "+2.1%",
+        changePositive: true,
+        icon: "₿",
+      },
+      {
+        symbol: "ETH",
+        name: "Ethereum",
+        balance: "0.05000000",
+        fiatValue: "125.75",
+        change: "+1.8%",
+        changePositive: true,
+        icon: "Ξ",
+      },
+      {
+        symbol: "ALGO",
+        name: "Algorand",
+        balance: "100.00000000",
+        fiatValue: "18.50",
+        change: "-0.5%",
+        changePositive: false,
+        icon: "Ⱥ",
+      },
+    ],
   }
-
-  useEffect(() => {
-    loadBlockchainData()
-    const interval = setInterval(loadBlockchainData, 30000)
-    return () => clearInterval(interval)
-  }, [walletData])
-
-  // Calculer le solde total
-  const totalBalance = blockchainBalances.reduce((sum, balance) => {
-    return sum + Number.parseFloat(balance.balanceUSD || "0")
-  }, 0)
 
   const recentTransactions = [
-    { type: "received", crypto: "ETH", amount: "+0.5", value: "$987.50", time: "2h ago" },
-    { type: "sent", crypto: "BTC", amount: "-0.01", value: "$430.00", time: "1d ago" },
-    { type: "received", crypto: "USDT", amount: "+100", value: "$100.00", time: "3d ago" },
+    {
+      id: "1",
+      type: "receive" as const,
+      crypto: "BTC",
+      amount: "+0.00125000",
+      fiatAmount: "+$52.50",
+      timestamp: "Il y a 2h",
+      status: "completed" as const,
+    },
+    {
+      id: "2",
+      type: "send" as const,
+      crypto: "ETH",
+      amount: "-0.01000000",
+      fiatAmount: "-$25.15",
+      timestamp: "Il y a 1j",
+      status: "completed" as const,
+    },
+    {
+      id: "3",
+      type: "receive" as const,
+      crypto: "ALGO",
+      amount: "+50.00000000",
+      fiatAmount: "+$9.25",
+      timestamp: "Il y a 2j",
+      status: "pending" as const,
+    },
   ]
 
-  const copyAddress = (address: string, symbol: string) => {
-    navigator.clipboard.writeText(address)
-    alert(`Adresse ${symbol} copiée !`)
-  }
-
-  // Ouvrir Mt Pelerin avec une action spécifique
-  const openMtPelerin = (action: "buy" | "sell" | "swap") => {
-    setMtPelerinAction(action)
-    setShowMtPelerin(true)
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    // Simuler un rafraîchissement
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    setIsRefreshing(false)
   }
 
   return (
-    <>
-      <div className="min-h-screen p-4 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Bonjour !</h1>
-            <p className="text-gray-600">{walletData.name}</p>
-          </div>
-          <Button variant="ghost" size="icon" onClick={() => onNavigate("settings")}>
-            <Settings className="h-5 w-5" />
-          </Button>
-        </div>
-
-        {/* Balance Card */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Solde total</CardTitle>
-              <Button variant="ghost" size="icon" onClick={() => setShowBalance(!showBalance)}>
-                {showBalance ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <LoadingFallback message="Chargement des soldes..." />
-            ) : (
-              <>
-                <div className="text-3xl font-bold text-gray-900 mb-2">
-                  {showBalance ? `$${totalBalance.toLocaleString()}` : "••••••"}
-                </div>
-                {lastUpdate && (
-                  <div className="text-xs text-gray-400">Dernière mise à jour: {lastUpdate.toLocaleTimeString()}</div>
-                )}
-                <div className="flex items-center space-x-2">
-                  <TrendingUp className="h-4 w-4 text-green-600" />
-                  <span className="text-green-600 text-sm font-medium">+12.5% (24h)</span>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Wallet Addresses SANS clés publiques */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Adresses du portefeuille</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Ethereum */}
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-700">Ethereum (EIP-55)</p>
-                <p className="font-mono text-sm break-all text-gray-900">
-                  {walletData.addresses?.ethereum || "Non disponible"}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:to-gray-800">
+      {/* Header */}
+      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="h-10 w-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                <Wallet className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {userType === "merchant" ? "Dashboard Professionnel" : "Mon Portefeuille"}
+                </h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {userType === "merchant"
+                    ? "Gestion crypto pour votre entreprise"
+                    : "Gérez vos cryptomonnaies en toute sécurité"}
                 </p>
               </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <NetworkSelector selectedNetwork={selectedNetwork} onNetworkChange={setSelectedNetwork} />
               <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => copyAddress(walletData.addresses?.ethereum || "", "ETH")}
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center space-x-2 bg-transparent"
               >
-                <Copy className="h-4 w-4" />
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">Actualiser</span>
               </Button>
-            </div>
-
-            {/* Bitcoin */}
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-700">Bitcoin (P2PKH Legacy)</p>
-                <p className="font-mono text-sm break-all text-gray-900">
-                  {walletData.addresses?.bitcoin || "Non disponible"}
-                </p>
-              </div>
               <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => copyAddress(walletData.addresses?.bitcoin || "", "BTC")}
+                variant="outline"
+                size="sm"
+                onClick={() => onNavigate("settings")}
+                className="flex items-center space-x-2"
               >
-                <Copy className="h-4 w-4" />
+                <Settings className="h-4 w-4" />
+                <span className="hidden sm:inline">Paramètres</span>
               </Button>
             </div>
-
-            {/* Algorand */}
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-700">Algorand (Base32)</p>
-                <p className="font-mono text-sm break-all text-gray-900">
-                  {walletData.addresses?.algorand || "Non disponible"}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => copyAddress(walletData.addresses?.algorand || "", "ALGO")}
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-4 gap-4">
-          <Button onClick={() => onNavigate("send")} className="h-16 flex-col space-y-2">
-            <Send className="h-6 w-6" />
-            <span>Envoyer</span>
-          </Button>
-          <Button onClick={() => onNavigate("receive")} variant="outline" className="h-16 flex-col space-y-2">
-            <Download className="h-6 w-6" />
-            <span>Recevoir</span>
-          </Button>
-          <Button
-            onClick={() => openMtPelerin("buy")}
-            variant="outline"
-            className="h-16 flex-col space-y-2 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200 hover:from-blue-100 hover:to-purple-100"
-          >
-            <ShoppingCart className="h-6 w-6 text-blue-600" />
-            <span className="text-blue-600 font-medium">Mt Pelerin</span>
-          </Button>
-          <Button
-            onClick={() => onNavigate("tpe")}
-            variant="outline"
-            className="h-16 flex-col space-y-2 bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 hover:from-green-100 hover:to-emerald-100"
-          >
-            <CreditCard className="h-6 w-6 text-green-600" />
-            <span className="text-green-600 font-medium">Mode TPE</span>
-          </Button>
-        </div>
-
-        {/* Crypto Holdings */}
-        <CryptoList walletData={walletData} onSend={(crypto) => onNavigate("send")} />
-
-        {/* Prix du marché */}
-        <RealTimePrices />
-
-        {/* Recent Transactions */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Transactions récentes</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => onNavigate("history")}>
-                Voir tout
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {recentTransactions.map((tx, index) => (
-              <div key={index} className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      tx.type === "received" ? "bg-green-100" : "bg-red-100"
-                    }`}
-                  >
-                    {tx.type === "received" ? (
-                      <Download className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <Send className="h-4 w-4 text-red-600" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-medium">
-                      {tx.type === "received" ? "Reçu" : "Envoyé"} {tx.crypto}
-                    </p>
-                    <p className="text-sm text-gray-600">{tx.time}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className={`font-medium ${tx.type === "received" ? "text-green-600" : "text-red-600"}`}>
-                    {tx.amount} {tx.crypto}
-                  </p>
-                  <p className="text-sm text-gray-600">{tx.value}</p>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* Bottom Navigation */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4">
-          <div className="flex justify-around max-w-md mx-auto">
-            <Button variant="ghost" size="sm" className="flex-col space-y-1">
-              <Wallet className="h-5 w-5" />
-              <span className="text-xs">Portefeuille</span>
-            </Button>
-            <Button variant="ghost" size="sm" className="flex-col space-y-1" onClick={() => onNavigate("history")}>
-              <History className="h-5 w-5" />
-              <span className="text-xs">Historique</span>
-            </Button>
-            <Button variant="ghost" size="sm" className="flex-col space-y-1" onClick={() => openMtPelerin("buy")}>
-              <ShoppingCart className="h-5 w-5" />
-              <span className="text-xs">Acheter</span>
-            </Button>
-            <Button variant="ghost" size="sm" className="flex-col space-y-1" onClick={() => onNavigate("tpe")}>
-              <CreditCard className="h-5 w-5" />
-              <span className="text-xs">TPE</span>
-            </Button>
-            <Button variant="ghost" size="sm" className="flex-col space-y-1" onClick={() => onNavigate("settings")}>
-              <Settings className="h-5 w-5" />
-              <span className="text-xs">Paramètres</span>
-            </Button>
           </div>
         </div>
       </div>
 
-      {/* Mt Pelerin Widget Modal */}
-      <MtPelerinWidget
-        isOpen={showMtPelerin}
-        onClose={() => setShowMtPelerin(false)}
-        walletData={walletData}
-        defaultAction={mtPelerinAction}
-      />
-    </>
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Colonne principale */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Portfolio Overview */}
+            <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl font-bold">Portfolio Total</CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setBalanceVisible(!balanceVisible)}
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  >
+                    {balanceVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <div className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                      {balanceVisible ? `$${portfolioData.totalBalance}` : "••••••"}
+                    </div>
+                    <div className="flex items-center justify-center space-x-2">
+                      <Badge
+                        variant="secondary"
+                        className={`${portfolioData.change24h.startsWith("+") ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400" : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"}`}
+                      >
+                        {portfolioData.change24h.startsWith("+") ? (
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                        ) : (
+                          <TrendingDown className="h-3 w-3 mr-1" />
+                        )}
+                        {portfolioData.changePercent}
+                      </Badge>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">24h</span>
+                    </div>
+                  </div>
+
+                  {/* Répartition du portfolio */}
+                  <div className="space-y-3">
+                    {portfolioData.cryptos.map((crypto, index) => (
+                      <div
+                        key={crypto.symbol}
+                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="h-10 w-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                            {crypto.icon}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-900 dark:text-white">{crypto.name}</div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                              {balanceVisible ? crypto.balance : "••••••"} {crypto.symbol}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-semibold text-gray-900 dark:text-white">
+                            {balanceVisible ? `$${crypto.fiatValue}` : "••••"}
+                          </div>
+                          <div className={`text-sm ${crypto.changePositive ? "text-green-600" : "text-red-600"}`}>
+                            {crypto.change}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Actions rapides */}
+            <Card className="shadow-lg border-0">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold">Actions Rapides</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Button
+                    onClick={() => onNavigate("send")}
+                    className="h-20 flex flex-col items-center justify-center space-y-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
+                  >
+                    <Send className="h-6 w-6" />
+                    <span className="text-sm">Envoyer</span>
+                  </Button>
+
+                  <Button
+                    onClick={() => onNavigate("receive")}
+                    className="h-20 flex flex-col items-center justify-center space-y-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
+                  >
+                    <Download className="h-6 w-6" />
+                    <span className="text-sm">Recevoir</span>
+                  </Button>
+
+                  <Button
+                    onClick={onShowMtPelerin}
+                    className="h-20 flex flex-col items-center justify-center space-y-2 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white"
+                  >
+                    <CreditCard className="h-6 w-6" />
+                    <span className="text-sm">Acheter</span>
+                  </Button>
+
+                  {userType === "merchant" && (
+                    <Button
+                      onClick={() => onNavigate("tpe")}
+                      className="h-20 flex flex-col items-center justify-center space-y-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
+                    >
+                      <Scan className="h-6 w-6" />
+                      <span className="text-sm">Mode TPE</span>
+                    </Button>
+                  )}
+
+                  {userType === "client" && (
+                    <Button
+                      onClick={onShowPriceAlert}
+                      className="h-20 flex flex-col items-center justify-center space-y-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
+                    >
+                      <Bell className="h-6 w-6" />
+                      <span className="text-sm">Créer Alerte</span>
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Transactions récentes */}
+            <Card className="shadow-lg border-0">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg font-semibold">Transactions Récentes</CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onNavigate("history")}
+                    className="flex items-center space-x-2"
+                  >
+                    <History className="h-4 w-4" />
+                    <span>Voir tout</span>
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {recentTransactions.map((tx) => (
+                    <div
+                      key={tx.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div
+                          className={`p-2 rounded-full ${tx.type === "receive" ? "bg-green-100 dark:bg-green-900/20" : "bg-blue-100 dark:bg-blue-900/20"}`}
+                        >
+                          {tx.type === "receive" ? (
+                            <ArrowDownLeft
+                              className={`h-4 w-4 ${tx.type === "receive" ? "text-green-600" : "text-blue-600"}`}
+                            />
+                          ) : (
+                            <ArrowUpRight
+                              className={`h-4 w-4 ${tx.type === "receive" ? "text-green-600" : "text-blue-600"}`}
+                            />
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-900 dark:text-white">
+                            {tx.type === "receive" ? "Reçu" : "Envoyé"} {tx.crypto}
+                          </div>
+                          <div className="text-sm text-gray-600 dark:text-gray-400">{tx.timestamp}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div
+                          className={`font-semibold ${tx.type === "receive" ? "text-green-600" : "text-gray-900 dark:text-white"}`}
+                        >
+                          {tx.amount}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{tx.fiatAmount}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Prix en temps réel */}
+            <RealTimePrices />
+
+            {/* Liste des cryptos */}
+            <CryptoList />
+
+            {/* Statistiques rapides */}
+            <Card className="shadow-lg border-0">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold">Statistiques</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Transactions ce mois</span>
+                  <span className="font-semibold">12</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Volume échangé</span>
+                  <span className="font-semibold">$2,847</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Gain/Perte</span>
+                  <span className="font-semibold text-green-600">+$127.50</span>
+                </div>
+                <div className="pt-2">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-600 dark:text-gray-400">Objectif mensuel</span>
+                    <span className="text-gray-600 dark:text-gray-400">68%</span>
+                  </div>
+                  <Progress value={68} className="h-2" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

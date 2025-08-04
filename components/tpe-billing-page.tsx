@@ -7,319 +7,290 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Calculator, QrCode, Send, Bitcoin, Smartphone, CheckCircle, AlertTriangle } from "lucide-react"
+import { ArrowLeft, Plus, FileText, Euro, Percent } from "lucide-react"
 import type { AppState } from "@/app/page"
 
-interface TPEBillingPageProps {
+interface BillingPageProps {
   onNavigate: (page: AppState) => void
-  walletData: any
 }
 
-interface PaymentRequest {
-  id: string
-  amount: number
-  currency: string
-  description: string
-  customerEmail: string
-  vatEnabled: boolean
-  vatRate: number
-  vatAmount: number
-  netAmount: number
-  cryptoOptions: any
-  status: string
-  expiresAt: Date
-}
+export function TPEBillingPage({ onNavigate }: BillingPageProps) {
+  const [invoiceData, setInvoiceData] = useState({
+    customerName: "",
+    customerEmail: "",
+    customerAddress: "",
+    items: [{ description: "", quantity: 1, unitPrice: 0 }],
+    vatRate: 20,
+    notes: "",
+  })
 
-export function TPEBillingPage({ onNavigate, walletData }: TPEBillingPageProps) {
-  const [amount, setAmount] = useState("")
-  const [currency, setCurrency] = useState("CHF")
-  const [description, setDescription] = useState("")
-  const [customerEmail, setCustomerEmail] = useState("")
-  const [paymentMethod, setPaymentMethod] = useState("crypto")
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [paymentSent, setPaymentSent] = useState(false)
-
-  const currencies = [
-    { code: "CHF", name: "Franc Suisse", symbol: "CHF" },
-    { code: "EUR", name: "Euro", symbol: "€" },
-    { code: "USD", name: "Dollar US", symbol: "$" },
-  ]
-
-  const cryptoRates = {
-    BTC: 43250,
-    ETH: 2650,
-    USDT: 1.0,
-    CHFM: 1.0, // Stablecoin CHF
+  const addItem = () => {
+    setInvoiceData({
+      ...invoiceData,
+      items: [...invoiceData.items, { description: "", quantity: 1, unitPrice: 0 }],
+    })
   }
 
-  const calculateCryptoAmount = (fiatAmount: string, crypto: string) => {
-    if (!fiatAmount || !crypto) return "0"
-    const amount = Number.parseFloat(fiatAmount)
-    const rate = cryptoRates[crypto as keyof typeof cryptoRates]
-    return (amount / rate).toFixed(crypto === "BTC" ? 8 : 6)
+  const updateItem = (index: number, field: string, value: any) => {
+    const newItems = [...invoiceData.items]
+    newItems[index] = { ...newItems[index], [field]: value }
+    setInvoiceData({ ...invoiceData, items: newItems })
   }
 
-  const handleSendPayment = async () => {
-    if (!amount || Number.parseFloat(amount) <= 0) return
+  const removeItem = (index: number) => {
+    const newItems = invoiceData.items.filter((_, i) => i !== index)
+    setInvoiceData({ ...invoiceData, items: newItems })
+  }
 
-    setIsProcessing(true)
+  const calculateSubtotal = () => {
+    return invoiceData.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+  }
 
-    // Calculer la TVA si activée
-    const vatSettings = JSON.parse(localStorage.getItem("tpe-vat-settings") || '{"enabled": false, "rate": 7.7}')
-    const amountFloat = Number.parseFloat(amount)
+  const calculateVAT = () => {
+    return (calculateSubtotal() * invoiceData.vatRate) / 100
+  }
 
-    let vatAmount = 0
-    let netAmount = amountFloat
+  const calculateTotal = () => {
+    return calculateSubtotal() + calculateVAT()
+  }
 
-    if (vatSettings.enabled) {
-      // Calcul TVA depuis prix TTC
-      vatAmount = (amountFloat * vatSettings.rate) / (100 + vatSettings.rate)
-      netAmount = amountFloat - vatAmount
-    }
-
-    // Générer les options de paiement crypto
-    const cryptoOptions = {
-      BTC: {
-        amount: (amountFloat / cryptoRates.BTC).toFixed(8),
-        address: walletData?.addresses?.bitcoin || "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2",
-        qr: "",
+  const generateInvoice = () => {
+    const invoice = {
+      id: `INV-${Date.now()}`,
+      date: new Date().toISOString(),
+      customer: {
+        name: invoiceData.customerName,
+        email: invoiceData.customerEmail,
+        address: invoiceData.customerAddress,
       },
-      ETH: {
-        amount: (amountFloat / cryptoRates.ETH).toFixed(6),
-        address: walletData?.addresses?.ethereum || "0x742d35Cc6634C0532925a3b8D4C9db96590c6C8C",
-        qr: "",
-      },
-      USDT: {
-        amount: amountFloat.toFixed(2),
-        address: walletData?.addresses?.ethereum || "0x742d35Cc6634C0532925a3b8D4C9db96590c6C8C",
-        qr: "",
-      },
-      lightning: {
-        invoice: `lnbc${Math.floor(amountFloat * 100000)}u1p${Math.random().toString(36).substr(2, 9)}`,
-        qr: "",
-      },
-    }
-
-    // Créer la demande de paiement
-    const paymentRequest: PaymentRequest = {
-      id: Date.now().toString(),
-      amount: amountFloat,
-      currency,
-      description,
-      customerEmail,
-      vatEnabled: vatSettings.enabled,
-      vatRate: vatSettings.rate,
-      vatAmount,
-      netAmount,
-      cryptoOptions,
+      items: invoiceData.items,
+      subtotal: calculateSubtotal(),
+      vatRate: invoiceData.vatRate,
+      vatAmount: calculateVAT(),
+      total: calculateTotal(),
+      notes: invoiceData.notes,
       status: "pending",
-      expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
     }
 
-    // Sauvegarder la demande
-    localStorage.setItem("current-payment-request", JSON.stringify(paymentRequest))
+    // Sauvegarder la facture
+    const existingInvoices = JSON.parse(localStorage.getItem("tpe-invoices") || "[]")
+    existingInvoices.push(invoice)
+    localStorage.setItem("tpe-invoices", JSON.stringify(existingInvoices))
 
-    setIsProcessing(false)
+    // Réinitialiser le formulaire
+    setInvoiceData({
+      customerName: "",
+      customerEmail: "",
+      customerAddress: "",
+      items: [{ description: "", quantity: 1, unitPrice: 0 }],
+      vatRate: 20,
+      notes: "",
+    })
 
-    // Naviguer vers la page de paiement
-    onNavigate("tpe-payment")
-  }
-
-  if (paymentSent) {
-    return (
-      <div className="min-h-screen p-4 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="h-8 w-8 text-green-600" />
-            </div>
-            <h2 className="text-xl font-bold text-green-800 mb-2">Demande envoyée !</h2>
-            <p className="text-gray-600 mb-4">
-              La demande de paiement de {amount} {currency} a été envoyée au client.
-            </p>
-            <div className="space-y-2 text-sm text-gray-500">
-              <p>• Le client recevra un QR code pour payer</p>
-              <p>• Vous serez notifié lors du paiement</p>
-              <p>• Conversion automatique en CHFM disponible</p>
-            </div>
-            <Button onClick={() => onNavigate("tpe")} className="mt-6 w-full">
-              Retour au menu TPE
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
+    alert(`Facture ${invoice.id} créée avec succès !`)
   }
 
   return (
-    <div className="min-h-screen p-4 space-y-6">
+    <div className="min-h-screen bg-gray-900 text-white p-4 ios-safe-area">
       {/* Header */}
-      <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="icon" onClick={() => onNavigate("tpe")}>
+      <div className="flex items-center p-4 ios-safe-top border-b border-gray-700">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onNavigate("tpe")}
+          className="touch-target mr-2 hover:bg-gray-800"
+        >
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Nouvelle Facture</h1>
-          <p className="text-gray-600">Créer une demande de paiement crypto</p>
-        </div>
+        <h1 className="text-2xl font-bold">Facturation</h1>
       </div>
 
-      {/* Formulaire de facturation */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Calculator className="h-5 w-5" />
-            <span>Détails de la facture</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Montant et devise */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="amount">Montant</Label>
+      <div className="p-4 space-y-6">
+        {/* Informations client */}
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-lg text-white flex items-center">
+              <FileText className="h-5 w-5 mr-2" />
+              Informations Client
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="customerName" className="text-gray-300">
+                Nom du client
+              </Label>
               <Input
-                id="amount"
-                type="number"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="text-lg font-medium"
+                id="customerName"
+                value={invoiceData.customerName}
+                onChange={(e) => setInvoiceData({ ...invoiceData, customerName: e.target.value })}
+                className="bg-gray-700 border-gray-600 text-white"
+                placeholder="Nom complet du client"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Devise</Label>
-              <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger>
+            <div>
+              <Label htmlFor="customerEmail" className="text-gray-300">
+                Email
+              </Label>
+              <Input
+                id="customerEmail"
+                type="email"
+                value={invoiceData.customerEmail}
+                onChange={(e) => setInvoiceData({ ...invoiceData, customerEmail: e.target.value })}
+                className="bg-gray-700 border-gray-600 text-white"
+                placeholder="email@exemple.com"
+              />
+            </div>
+            <div>
+              <Label htmlFor="customerAddress" className="text-gray-300">
+                Adresse
+              </Label>
+              <Textarea
+                id="customerAddress"
+                value={invoiceData.customerAddress}
+                onChange={(e) => setInvoiceData({ ...invoiceData, customerAddress: e.target.value })}
+                className="bg-gray-700 border-gray-600 text-white"
+                placeholder="Adresse complète du client"
+                rows={3}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Articles */}
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-lg text-white flex items-center justify-between">
+              <span className="flex items-center">
+                <Euro className="h-5 w-5 mr-2" />
+                Articles
+              </span>
+              <Button onClick={addItem} size="sm" className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4 mr-1" />
+                Ajouter
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {invoiceData.items.map((item, index) => (
+              <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-700 rounded-lg">
+                <div className="md:col-span-2">
+                  <Label className="text-gray-300">Description</Label>
+                  <Input
+                    value={item.description}
+                    onChange={(e) => updateItem(index, "description", e.target.value)}
+                    className="bg-gray-600 border-gray-500 text-white"
+                    placeholder="Description de l'article"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Quantité</Label>
+                  <Input
+                    type="number"
+                    value={item.quantity}
+                    onChange={(e) => updateItem(index, "quantity", Number.parseInt(e.target.value) || 0)}
+                    className="bg-gray-600 border-gray-500 text-white"
+                    min="1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-gray-300">Prix unitaire (€)</Label>
+                  <div className="flex">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={item.unitPrice}
+                      onChange={(e) => updateItem(index, "unitPrice", Number.parseFloat(e.target.value) || 0)}
+                      className="bg-gray-600 border-gray-500 text-white"
+                      min="0"
+                    />
+                    {invoiceData.items.length > 1 && (
+                      <Button variant="destructive" size="sm" onClick={() => removeItem(index)} className="ml-2">
+                        ×
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Paramètres de facturation */}
+        <Card className="bg-gray-800 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-lg text-white flex items-center">
+              <Percent className="h-5 w-5 mr-2" />
+              Paramètres
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="vatRate" className="text-gray-300">
+                Taux de TVA (%)
+              </Label>
+              <Select
+                value={invoiceData.vatRate.toString()}
+                onValueChange={(value) => setInvoiceData({ ...invoiceData, vatRate: Number.parseInt(value) })}
+              >
+                <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  {currencies.map((curr) => (
-                    <SelectItem key={curr.code} value={curr.code}>
-                      {curr.name} ({curr.symbol})
-                    </SelectItem>
-                  ))}
+                <SelectContent className="bg-gray-700 border-gray-600">
+                  <SelectItem value="0">0% (Exonéré)</SelectItem>
+                  <SelectItem value="5.5">5.5% (Taux réduit)</SelectItem>
+                  <SelectItem value="10">10% (Taux intermédiaire)</SelectItem>
+                  <SelectItem value="20">20% (Taux normal)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          </div>
+            <div>
+              <Label htmlFor="notes" className="text-gray-300">
+                Notes
+              </Label>
+              <Textarea
+                id="notes"
+                value={invoiceData.notes}
+                onChange={(e) => setInvoiceData({ ...invoiceData, notes: e.target.value })}
+                className="bg-gray-700 border-gray-600 text-white"
+                placeholder="Notes additionnelles pour la facture"
+                rows={3}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="description">Description (optionnel)</Label>
-            <Textarea
-              id="description"
-              placeholder="Description de la transaction..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-            />
-          </div>
-
-          {/* Email client */}
-          <div className="space-y-2">
-            <Label htmlFor="email">Email client (optionnel)</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="client@example.com"
-              value={customerEmail}
-              onChange={(e) => setCustomerEmail(e.target.value)}
-            />
-            <p className="text-sm text-gray-600">Le client recevra un lien de paiement par email</p>
-          </div>
-
-          {/* Méthode de paiement */}
-          <div className="space-y-2">
-            <Label>Méthode de paiement acceptée</Label>
-            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="crypto">
-                  <div className="flex items-center space-x-2">
-                    <Bitcoin className="h-4 w-4" />
-                    <span>Cryptomonnaies</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="qr">
-                  <div className="flex items-center space-x-2">
-                    <QrCode className="h-4 w-4" />
-                    <span>QR Code</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="mobile">
-                  <div className="flex items-center space-x-2">
-                    <Smartphone className="h-4 w-4" />
-                    <span>Paiement mobile</span>
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Aperçu des montants crypto */}
-      {amount && Number.parseFloat(amount) > 0 && (
-        <Card>
+        {/* Récapitulatif */}
+        <Card className="bg-gray-800 border-gray-700">
           <CardHeader>
-            <CardTitle className="text-lg">Équivalents crypto</CardTitle>
+            <CardTitle className="text-lg text-white">Récapitulatif</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-3 bg-orange-50 rounded-lg">
-                <p className="text-sm text-gray-600">Bitcoin</p>
-                <p className="font-bold text-orange-600">{calculateCryptoAmount(amount, "BTC")} BTC</p>
+            <div className="space-y-2 text-white">
+              <div className="flex justify-between">
+                <span>Sous-total:</span>
+                <span>{calculateSubtotal().toFixed(2)} €</span>
               </div>
-              <div className="text-center p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-gray-600">Ethereum</p>
-                <p className="font-bold text-blue-600">{calculateCryptoAmount(amount, "ETH")} ETH</p>
+              <div className="flex justify-between">
+                <span>TVA ({invoiceData.vatRate}%):</span>
+                <span>{calculateVAT().toFixed(2)} €</span>
               </div>
-              <div className="text-center p-3 bg-green-50 rounded-lg">
-                <p className="text-sm text-gray-600">USDT</p>
-                <p className="font-bold text-green-600">{calculateCryptoAmount(amount, "USDT")} USDT</p>
-              </div>
-              <div className="text-center p-3 bg-purple-50 rounded-lg">
-                <p className="text-sm text-gray-600">CHFM</p>
-                <p className="font-bold text-purple-600">{amount} CHFM</p>
+              <div className="flex justify-between font-bold text-lg border-t border-gray-600 pt-2">
+                <span>Total:</span>
+                <span>{calculateTotal().toFixed(2)} €</span>
               </div>
             </div>
           </CardContent>
         </Card>
-      )}
 
-      {/* Actions */}
-      <div className="space-y-4">
-        <Button
-          onClick={handleSendPayment}
-          disabled={!amount || Number.parseFloat(amount) <= 0 || isProcessing}
-          className="w-full h-12"
-        >
-          {isProcessing ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              Envoi en cours...
-            </>
-          ) : (
-            <>
-              <Send className="h-4 w-4 mr-2" />
-              Envoyer la demande de paiement
-            </>
-          )}
-        </Button>
-
-        <div className="rounded-lg bg-yellow-50 p-4 border border-yellow-200">
-          <div className="flex items-start space-x-2">
-            <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
-            <div className="text-sm text-yellow-800">
-              <p className="font-medium">Information importante</p>
-              <p className="mt-1">
-                Le client pourra payer avec n'importe quelle crypto supportée. La conversion en CHFM sera disponible
-                après réception du paiement.
-              </p>
-            </div>
-          </div>
+        {/* Actions */}
+        <div className="flex gap-4">
+          <Button
+            onClick={generateInvoice}
+            className="flex-1 bg-green-600 hover:bg-green-700"
+            disabled={!invoiceData.customerName || invoiceData.items.some((item) => !item.description)}
+          >
+            Générer la facture
+          </Button>
         </div>
       </div>
     </div>

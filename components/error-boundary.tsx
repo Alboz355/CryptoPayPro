@@ -1,59 +1,72 @@
 "use client"
 
-import { Component, type ReactNode } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Component, type ErrorInfo, type ReactNode } from "react"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { AlertTriangle, RefreshCw } from "lucide-react"
 
-interface Props {
+interface ErrorBoundaryProps {
   children: ReactNode
+  fallback?: ReactNode
 }
 
-interface State {
+interface ErrorBoundaryState {
   hasError: boolean
-  error?: Error
+  error: Error | null
+  errorInfo: ErrorInfo | null
 }
 
-export class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
-    super(props)
-    this.state = { hasError: false }
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState = {
+    hasError: false,
+    error: null,
+    errorInfo: null,
   }
 
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error }
+  public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    // Update state so the next render will show the fallback UI.
+    return { hasError: true, error, errorInfo: null }
   }
 
-  componentDidCatch(error: Error, errorInfo: any) {
-    console.error("ErrorBoundary caught an error:", error, errorInfo)
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // You can also log the error to an error reporting service
+    console.error("Uncaught error:", error, errorInfo)
+    this.setState({ errorInfo })
   }
 
-  render() {
+  private handleReset = () => {
+    this.setState({ hasError: false, error: null, errorInfo: null })
+    // Optionally, navigate to home or refresh the page
+    window.location.reload()
+  }
+
+  public render() {
     if (this.state.hasError) {
+      // You can render any custom fallback UI
       return (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
-              </div>
-              <CardTitle className="text-xl">Erreur de chargement</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-gray-600 text-center">
-                Une erreur s'est produite lors du chargement des données blockchain.
-              </p>
-
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="text-xs font-mono text-gray-700">{this.state.error?.message || "Erreur inconnue"}</p>
-              </div>
-
-              <Button onClick={() => window.location.reload()} className="w-full">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Recharger l'application
-              </Button>
-            </CardContent>
-          </Card>
+        <div className="flex items-center justify-center min-h-screen bg-background p-4">
+          {this.props.fallback || (
+            <Card className="w-full max-w-md text-center shadow-lg">
+              <CardHeader>
+                <CardTitle className="text-red-500 text-2xl">Oups! Quelque chose s'est mal passé.</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-muted-foreground">Nous sommes désolés, une erreur inattendue est survenue.</p>
+                {process.env.NODE_ENV === "development" && this.state.error && (
+                  <details className="text-sm text-left p-2 bg-muted rounded-md overflow-auto max-h-48">
+                    <summary className="font-semibold cursor-pointer">Détails de l'erreur</summary>
+                    <pre className="mt-2 whitespace-pre-wrap break-all">
+                      {this.state.error.toString()}
+                      <br />
+                      {this.state.errorInfo?.componentStack}
+                    </pre>
+                  </details>
+                )}
+                <Button onClick={this.handleReset} className="w-full">
+                  Recharger l'application
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )
     }

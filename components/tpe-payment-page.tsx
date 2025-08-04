@@ -1,536 +1,436 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  ArrowLeft,
-  Zap,
-  Bitcoin,
-  Smartphone,
-  QrCode,
-  CheckCircle,
-  Clock,
-  AlertTriangle,
-  Copy,
-  RefreshCw,
-} from "lucide-react"
-import type { AppState } from "@/app/page"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { CreditCard, QrCode, CheckCircle, Clock, DollarSign, Calculator, Receipt, Smartphone } from "lucide-react"
 
-interface PaymentRequest {
-  id: string
-  amount: number
-  currency: string
+interface PaymentData {
+  amount: string
+  currency: "CHF" | "EUR" | "USD"
+  cryptoCurrency: "BTC" | "ETH" | "ALGO"
+  customer?: {
+    name: string
+    email: string
+    phone: string
+  }
   description: string
-  customerEmail?: string
-  vatEnabled: boolean
-  vatRate: number
-  vatAmount: number
-  netAmount: number
-  cryptoOptions: {
-    BTC: { amount: string; address: string; qr: string }
-    ETH: { amount: string; address: string; qr: string }
-    USDT: { amount: string; address: string; qr: string }
-    lightning: { invoice: string; qr: string }
+}
+
+// Taux de change simulés
+const mockRates = {
+  BTC: { CHF: 43000, EUR: 40000, USD: 42000 },
+  ETH: { CHF: 2400, EUR: 2200, USD: 2300 },
+  ALGO: { CHF: 0.32, EUR: 0.29, USD: 0.31 },
+}
+
+export function TPEPaymentPage() {
+  const [paymentData, setPaymentData] = useState<PaymentData>({
+    amount: "",
+    currency: "CHF",
+    cryptoCurrency: "BTC",
+    description: "",
+  })
+  const [currentStep, setCurrentStep] = useState<"setup" | "confirm" | "processing" | "completed">("setup")
+  const [qrCodeData, setQrCodeData] = useState("")
+  const [processingTime, setProcessingTime] = useState(0)
+
+  const calculateCryptoAmount = () => {
+    if (!paymentData.amount) return "0"
+    const fiatAmount = Number.parseFloat(paymentData.amount)
+    const rate = mockRates[paymentData.cryptoCurrency][paymentData.currency]
+    const cryptoAmount = fiatAmount / rate
+
+    switch (paymentData.cryptoCurrency) {
+      case "BTC":
+        return cryptoAmount.toFixed(8)
+      case "ETH":
+        return cryptoAmount.toFixed(6)
+      case "ALGO":
+        return cryptoAmount.toFixed(2)
+      default:
+        return "0"
+    }
   }
-  status: "pending" | "paid" | "expired"
-  expiresAt: Date
-}
 
-interface TPEPaymentPageProps {
-  onNavigate: (page: AppState) => void
-  paymentRequest: PaymentRequest
-  walletData: any
-}
+  const handleStartPayment = () => {
+    if (!paymentData.amount || Number.parseFloat(paymentData.amount) <= 0) {
+      return
+    }
 
-export function TPEPaymentPage({ onNavigate, paymentRequest, walletData }: TPEPaymentPageProps) {
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"BTC" | "ETH" | "USDT" | "lightning">("lightning")
-  const [timeRemaining, setTimeRemaining] = useState<number>(0)
-  const [paymentStatus, setPaymentStatus] = useState<"waiting" | "confirming" | "confirmed" | "expired">("waiting")
+    // Générer QR code simulé
+    const cryptoAmount = calculateCryptoAmount()
+    setQrCodeData(`${paymentData.cryptoCurrency}:${cryptoAmount}`)
+    setCurrentStep("confirm")
+  }
 
-  // Calculer le temps restant
-  useEffect(() => {
+  const handleConfirmPayment = () => {
+    setCurrentStep("processing")
+    setProcessingTime(0)
+
+    // Simulation du traitement
     const interval = setInterval(() => {
-      const now = new Date().getTime()
-      const expires = paymentRequest.expiresAt.getTime()
-      const remaining = Math.max(0, expires - now)
-
-      setTimeRemaining(remaining)
-
-      if (remaining === 0) {
-        setPaymentStatus("expired")
-      }
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [paymentRequest.expiresAt])
-
-  // Simuler la détection de paiement
-  useEffect(() => {
-    if (paymentStatus === "waiting") {
-      // Simuler un paiement après 10 secondes pour la démo
-      const timer = setTimeout(() => {
-        setPaymentStatus("confirming")
-
-        setTimeout(() => {
-          setPaymentStatus("confirmed")
-          handlePaymentConfirmed()
-        }, 3000)
-      }, 10000)
-
-      return () => clearTimeout(timer)
-    }
-  }, [paymentStatus])
-
-  const handlePaymentConfirmed = () => {
-    // Sauvegarder la transaction
-    const transaction = {
-      id: paymentRequest.id,
-      amount: paymentRequest.amount,
-      currency: paymentRequest.currency,
-      netAmount: paymentRequest.netAmount,
-      vatAmount: paymentRequest.vatAmount,
-      vatRate: paymentRequest.vatRate,
-      vatEnabled: paymentRequest.vatEnabled,
-      description: paymentRequest.description,
-      customerEmail: paymentRequest.customerEmail,
-      paymentMethod: selectedPaymentMethod,
-      cryptoAmount: paymentRequest.cryptoOptions[selectedPaymentMethod].amount,
-      status: "completed",
-      timestamp: new Date().toISOString(),
-      type: "payment",
-    }
-
-    // Sauvegarder dans l'historique TPE
-    const existingTransactions = JSON.parse(localStorage.getItem("tpe-transactions") || "[]")
-    existingTransactions.unshift(transaction)
-    localStorage.setItem("tpe-transactions", JSON.stringify(existingTransactions))
-
-    // Si TVA activée, traiter le transfert automatique
-    if (paymentRequest.vatEnabled && paymentRequest.vatAmount > 0) {
-      handleVATTransfer(transaction)
-    }
-
-    // Mettre à jour les stats du jour
-    const todayStats = JSON.parse(
-      localStorage.getItem("tpe-today-stats") || '{"transactions": 0, "volume": "0.00", "converted": "0.00"}',
-    )
-    todayStats.transactions += 1
-    todayStats.volume = (Number.parseFloat(todayStats.volume) + paymentRequest.amount).toFixed(2)
-    localStorage.setItem("tpe-today-stats", JSON.stringify(todayStats))
-
-    // Retourner au menu principal après 3 secondes
-    setTimeout(() => {
-      onNavigate("tpe")
-    }, 3000)
+      setProcessingTime((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval)
+          setCurrentStep("completed")
+          return 100
+        }
+        return prev + 10
+      })
+    }, 500)
   }
 
-  const handleVATTransfer = (transaction: any) => {
-    // Simuler le transfert automatique de TVA vers le compte USDC Polygon
-    const vatTransfer = {
-      id: `vat-${transaction.id}`,
-      originalTransactionId: transaction.id,
-      amount: transaction.vatAmount,
-      currency: "USDC",
-      network: "Polygon",
-      toAddress: "0x742d35Cc6634C0532925a3b8D4C9db96590c6C8C", // Adresse TVA
-      status: "completed",
-      timestamp: new Date().toISOString(),
-      type: "vat_transfer",
-    }
-
-    // Sauvegarder le transfert TVA
-    const existingVATTransfers = JSON.parse(localStorage.getItem("tpe-vat-transfers") || "[]")
-    existingVATTransfers.unshift(vatTransfer)
-    localStorage.setItem("tpe-vat-transfers", JSON.stringify(existingVATTransfers))
-
-    console.log("Transfert TVA automatique effectué:", vatTransfer)
-  }
-
-  const formatTime = (ms: number) => {
-    const minutes = Math.floor(ms / 60000)
-    const seconds = Math.floor((ms % 60000) / 1000)
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`
-  }
-
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text)
-    alert(`${label} copié dans le presse-papiers !`)
-  }
-
-  const refreshPayment = () => {
-    // Simuler un rafraîchissement
-    setPaymentStatus("waiting")
-  }
-
-  if (paymentStatus === "confirmed") {
-    return (
-      <div className="min-h-screen p-4 flex items-center justify-center bg-green-50">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="h-8 w-8 text-green-600" />
-            </div>
-            <h2 className="text-xl font-bold text-green-800 mb-2">Paiement confirmé !</h2>
-            <p className="text-gray-600 mb-4">
-              {paymentRequest.amount} {paymentRequest.currency} reçu avec succès
-            </p>
-
-            {/* Détails du paiement */}
-            <div className="bg-gray-50 p-4 rounded-lg mb-4 text-left">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Montant brut:</span>
-                  <span className="font-medium">
-                    {paymentRequest.amount} {paymentRequest.currency}
-                  </span>
-                </div>
-                {paymentRequest.vatEnabled && (
-                  <>
-                    <div className="flex justify-between">
-                      <span>TVA ({paymentRequest.vatRate}%):</span>
-                      <span className="font-medium">
-                        {paymentRequest.vatAmount.toFixed(2)} {paymentRequest.currency}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Montant net:</span>
-                      <span className="font-medium">
-                        {paymentRequest.netAmount.toFixed(2)} {paymentRequest.currency}
-                      </span>
-                    </div>
-                  </>
-                )}
-                <div className="flex justify-between">
-                  <span>Méthode:</span>
-                  <span className="font-medium">
-                    {selectedPaymentMethod === "lightning" ? "Lightning Network" : selectedPaymentMethod}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {paymentRequest.vatEnabled && (
-              <div className="bg-blue-50 p-3 rounded-lg mb-4">
-                <p className="text-sm text-blue-800">✅ TVA transférée automatiquement vers le compte USDC Polygon</p>
-              </div>
-            )}
-
-            <Button onClick={() => onNavigate("tpe")} className="w-full">
-              Retour au menu TPE
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  if (paymentStatus === "expired") {
-    return (
-      <div className="min-h-screen p-4 flex items-center justify-center bg-red-50">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6 text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="h-8 w-8 text-red-600" />
-            </div>
-            <h2 className="text-xl font-bold text-red-800 mb-2">Paiement expiré</h2>
-            <p className="text-gray-600 mb-4">La demande de paiement a expiré. Veuillez créer une nouvelle facture.</p>
-            <Button onClick={() => onNavigate("tpe-billing")} className="w-full">
-              Nouvelle facture
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
+  const handleNewPayment = () => {
+    setPaymentData({
+      amount: "",
+      currency: "CHF",
+      cryptoCurrency: "BTC",
+      description: "",
+    })
+    setCurrentStep("setup")
+    setProcessingTime(0)
+    setQrCodeData("")
   }
 
   return (
-    <div className="min-h-screen p-4 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon" onClick={() => onNavigate("tpe-billing")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Paiement en cours</h1>
-            <p className="text-gray-600">En attente du paiement client</p>
-          </div>
+    <div className="space-y-6 p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+      {/* En-tête */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">💳 Paiement Crypto</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Accepter des paiements en cryptomonnaies</p>
         </div>
-
-        {/* Timer */}
-        <div className="text-center">
-          <div className="text-2xl font-bold text-orange-600">{formatTime(timeRemaining)}</div>
-          <p className="text-xs text-gray-600">Temps restant</p>
+        <div className="flex items-center gap-2">
+          <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20">🟢 Terminal Actif</Badge>
         </div>
       </div>
 
-      {/* Statut du paiement */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-center space-x-3 mb-4">
-            {paymentStatus === "waiting" && (
-              <>
-                <Clock className="h-6 w-6 text-orange-600 animate-pulse" />
-                <span className="text-lg font-medium">En attente du paiement...</span>
-              </>
-            )}
-            {paymentStatus === "confirming" && (
-              <>
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                <span className="text-lg font-medium text-blue-600">Confirmation en cours...</span>
-              </>
-            )}
-          </div>
-
-          <div className="text-center">
-            <div className="text-3xl font-bold mb-2">
-              {paymentRequest.amount} {paymentRequest.currency}
-            </div>
-            {paymentRequest.description && <p className="text-gray-600 mb-4">{paymentRequest.description}</p>}
-
-            {/* Détails TVA */}
-            {paymentRequest.vatEnabled && (
-              <div className="bg-gray-50 p-3 rounded-lg mb-4">
-                <div className="text-sm space-y-1">
-                  <div className="flex justify-between">
-                    <span>Montant HT:</span>
-                    <span>
-                      {paymentRequest.netAmount.toFixed(2)} {paymentRequest.currency}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>TVA ({paymentRequest.vatRate}%):</span>
-                    <span>
-                      {paymentRequest.vatAmount.toFixed(2)} {paymentRequest.currency}
-                    </span>
-                  </div>
-                  <div className="border-t pt-1 flex justify-between font-medium">
-                    <span>Total TTC:</span>
-                    <span>
-                      {paymentRequest.amount} {paymentRequest.currency}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Options de paiement */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Choisir la méthode de paiement</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs value={selectedPaymentMethod} onValueChange={(value: any) => setSelectedPaymentMethod(value)}>
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="lightning" className="flex items-center space-x-1">
-                <Zap className="h-4 w-4" />
-                <span className="hidden sm:inline">Lightning</span>
-              </TabsTrigger>
-              <TabsTrigger value="BTC">BTC</TabsTrigger>
-              <TabsTrigger value="ETH">ETH</TabsTrigger>
-              <TabsTrigger value="USDT">USDT</TabsTrigger>
-            </TabsList>
-
-            {/* Lightning Network */}
-            <TabsContent value="lightning" className="space-y-4">
-              <div className="text-center">
-                <Badge className="bg-yellow-100 text-yellow-800 mb-4">
-                  <Zap className="h-3 w-3 mr-1" />
-                  Paiement instantané
-                </Badge>
-
-                <div className="bg-white p-4 rounded-lg border-2 border-yellow-200 mb-4">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(paymentRequest.cryptoOptions.lightning.invoice)}`}
-                    alt="Lightning Invoice QR"
-                    className="w-48 h-48 mx-auto"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-2">Facture Lightning:</p>
-                    <p className="font-mono text-xs break-all">{paymentRequest.cryptoOptions.lightning.invoice}</p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        copyToClipboard(paymentRequest.cryptoOptions.lightning.invoice, "Facture Lightning")
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Configuration du paiement */}
+        <div className="lg:col-span-2">
+          {currentStep === "setup" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Configuration du Paiement
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="amount">Montant *</Label>
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={paymentData.amount}
+                      onChange={(e) =>
+                        setPaymentData((prev) => ({
+                          ...prev,
+                          amount: e.target.value,
+                        }))
                       }
-                      className="mt-2"
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copier
-                    </Button>
+                      className="text-2xl font-bold text-right"
+                    />
                   </div>
 
-                  <div className="text-sm text-gray-600">
-                    <p>• Paiement instantané et frais réduits</p>
-                    <p>• Scannez avec un wallet Lightning</p>
-                    <p>• Confirmation en quelques secondes</p>
+                  <div>
+                    <Label htmlFor="currency">Devise</Label>
+                    <Select
+                      value={paymentData.currency}
+                      onValueChange={(value: "CHF" | "EUR" | "USD") =>
+                        setPaymentData((prev) => ({ ...prev, currency: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CHF">CHF - Franc Suisse</SelectItem>
+                        <SelectItem value="EUR">EUR - Euro</SelectItem>
+                        <SelectItem value="USD">USD - Dollar US</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              </div>
-            </TabsContent>
 
-            {/* Bitcoin */}
-            <TabsContent value="BTC" className="space-y-4">
-              <div className="text-center">
-                <Badge className="bg-orange-100 text-orange-800 mb-4">
-                  <Bitcoin className="h-3 w-3 mr-1" />
-                  {paymentRequest.cryptoOptions.BTC.amount} BTC
-                </Badge>
+                <div>
+                  <Label htmlFor="crypto">Cryptomonnaie</Label>
+                  <Select
+                    value={paymentData.cryptoCurrency}
+                    onValueChange={(value: "BTC" | "ETH" | "ALGO") =>
+                      setPaymentData((prev) => ({ ...prev, cryptoCurrency: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="BTC">₿ Bitcoin (BTC)</SelectItem>
+                      <SelectItem value="ETH">Ξ Ethereum (ETH)</SelectItem>
+                      <SelectItem value="ALGO">◈ Algorand (ALGO)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                <div className="bg-white p-4 rounded-lg border-2 border-orange-200 mb-4">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=bitcoin:${paymentRequest.cryptoOptions.BTC.address}?amount=${paymentRequest.cryptoOptions.BTC.amount}`}
-                    alt="Bitcoin QR"
-                    className="w-48 h-48 mx-auto"
+                {paymentData.amount && (
+                  <Alert>
+                    <Calculator className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Montant crypto:</strong> {calculateCryptoAmount()} {paymentData.cryptoCurrency}
+                      <br />
+                      <strong>Taux:</strong> 1 {paymentData.cryptoCurrency} ={" "}
+                      {mockRates[paymentData.cryptoCurrency][paymentData.currency].toLocaleString()}{" "}
+                      {paymentData.currency}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <div>
+                  <Label htmlFor="description">Description (optionnelle)</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Description du paiement..."
+                    value={paymentData.description}
+                    onChange={(e) =>
+                      setPaymentData((prev) => ({
+                        ...prev,
+                        description: e.target.value,
+                      }))
+                    }
                   />
                 </div>
 
-                <div className="space-y-3">
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-2">Adresse Bitcoin:</p>
-                    <p className="font-mono text-sm break-all">{paymentRequest.cryptoOptions.BTC.address}</p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(paymentRequest.cryptoOptions.BTC.address, "Adresse Bitcoin")}
-                      className="mt-2"
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copier
-                    </Button>
-                  </div>
+                <div className="flex gap-4">
+                  <Button
+                    onClick={handleStartPayment}
+                    disabled={!paymentData.amount || Number.parseFloat(paymentData.amount) <= 0}
+                    className="flex-1 h-12 bg-green-600 hover:bg-green-700"
+                  >
+                    <QrCode className="h-4 w-4 mr-2" />
+                    Générer QR Code
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-                  <div className="text-sm text-gray-600">
-                    <p>• Confirmation: 10-60 minutes</p>
-                    <p>• Frais de réseau variables</p>
-                    <p>• Sécurité maximale</p>
+          {currentStep === "confirm" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <QrCode className="h-5 w-5" />
+                  Confirmation du Paiement
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-center space-y-6">
+                {/* QR Code simulé */}
+                <div className="bg-white p-8 rounded-lg border-2 border-gray-200 inline-block">
+                  <div className="w-48 h-48 bg-gray-900 rounded-lg flex items-center justify-center">
+                    <QrCode className="h-24 w-24 text-white" />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">QR Code: {qrCodeData}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {paymentData.amount} {paymentData.currency}
+                  </p>
+                  <p className="text-lg text-gray-600 dark:text-gray-400">
+                    = {calculateCryptoAmount()} {paymentData.cryptoCurrency}
+                  </p>
+                </div>
+
+                <Alert>
+                  <Smartphone className="h-4 w-4" />
+                  <AlertDescription>
+                    Demandez au client de scanner ce QR code avec son portefeuille crypto
+                  </AlertDescription>
+                </Alert>
+
+                <div className="flex gap-4">
+                  <Button variant="outline" onClick={() => setCurrentStep("setup")}>
+                    Retour
+                  </Button>
+                  <Button onClick={handleConfirmPayment} className="flex-1 bg-green-600 hover:bg-green-700">
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Confirmer la Transaction
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep === "processing" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Traitement en Cours
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-center space-y-6">
+                <div className="w-16 h-16 mx-auto border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+
+                <div>
+                  <p className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                    Vérification de la Transaction
+                  </p>
+                  <p className="text-gray-600 dark:text-gray-400">Attente de confirmation sur le réseau...</p>
+                </div>
+
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${processingTime}%` }}
+                  ></div>
+                </div>
+
+                <p className="text-sm text-gray-500">Progression: {processingTime}%</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep === "completed" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  Paiement Réussi
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-center space-y-6">
+                <div className="w-16 h-16 mx-auto bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                </div>
+
+                <div>
+                  <p className="text-2xl font-bold text-green-600 mb-2">Transaction Confirmée</p>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Le paiement de {paymentData.amount} {paymentData.currency} a été reçu avec succès
+                  </p>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg space-y-2">
+                  <div className="flex justify-between">
+                    <span>Montant:</span>
+                    <span className="font-semibold">
+                      {calculateCryptoAmount()} {paymentData.cryptoCurrency}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Équivalent:</span>
+                    <span className="font-semibold">
+                      {paymentData.amount} {paymentData.currency}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Frais réseau:</span>
+                    <span className="font-semibold text-green-600">Gratuit</span>
                   </div>
                 </div>
+
+                <div className="flex gap-4">
+                  <Button variant="outline">
+                    <Receipt className="h-4 w-4 mr-2" />
+                    Imprimer Reçu
+                  </Button>
+                  <Button onClick={handleNewPayment} className="flex-1 bg-blue-600 hover:bg-blue-700">
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Nouveau Paiement
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Panel d'informations */}
+        <div className="space-y-4">
+          {/* Taux actuels */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Taux Actuels
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {Object.entries(mockRates).map(([crypto, rates]) => (
+                <div key={crypto} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                  <span className="font-semibold">{crypto}</span>
+                  <span className="text-sm">
+                    {rates[paymentData.currency].toLocaleString()} {paymentData.currency}
+                  </span>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Instructions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Instructions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                  1
+                </span>
+                <p className="text-sm">Saisissez le montant à recevoir</p>
               </div>
-            </TabsContent>
-
-            {/* Ethereum */}
-            <TabsContent value="ETH" className="space-y-4">
-              <div className="text-center">
-                <Badge className="bg-blue-100 text-blue-800 mb-4">{paymentRequest.cryptoOptions.ETH.amount} ETH</Badge>
-
-                <div className="bg-white p-4 rounded-lg border-2 border-blue-200 mb-4">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=ethereum:${paymentRequest.cryptoOptions.ETH.address}?value=${paymentRequest.cryptoOptions.ETH.amount}`}
-                    alt="Ethereum QR"
-                    className="w-48 h-48 mx-auto"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-2">Adresse Ethereum:</p>
-                    <p className="font-mono text-sm break-all">{paymentRequest.cryptoOptions.ETH.address}</p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(paymentRequest.cryptoOptions.ETH.address, "Adresse Ethereum")}
-                      className="mt-2"
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copier
-                    </Button>
-                  </div>
-
-                  <div className="text-sm text-gray-600">
-                    <p>• Confirmation: 1-5 minutes</p>
-                    <p>• Frais de gas variables</p>
-                    <p>• Compatible DeFi</p>
-                  </div>
-                </div>
+              <div className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                  2
+                </span>
+                <p className="text-sm">Choisissez la cryptomonnaie</p>
               </div>
-            </TabsContent>
-
-            {/* USDT */}
-            <TabsContent value="USDT" className="space-y-4">
-              <div className="text-center">
-                <Badge className="bg-green-100 text-green-800 mb-4">
-                  {paymentRequest.cryptoOptions.USDT.amount} USDT
-                </Badge>
-
-                <div className="bg-white p-4 rounded-lg border-2 border-green-200 mb-4">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=ethereum:${paymentRequest.cryptoOptions.USDT.address}?value=${paymentRequest.cryptoOptions.USDT.amount}`}
-                    alt="USDT QR"
-                    className="w-48 h-48 mx-auto"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-2">Adresse USDT (ERC-20):</p>
-                    <p className="font-mono text-sm break-all">{paymentRequest.cryptoOptions.USDT.address}</p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(paymentRequest.cryptoOptions.USDT.address, "Adresse USDT")}
-                      className="mt-2"
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copier
-                    </Button>
-                  </div>
-
-                  <div className="text-sm text-gray-600">
-                    <p>• Stablecoin (1 USDT = 1 USD)</p>
-                    <p>• Confirmation: 1-5 minutes</p>
-                    <p>• Idéal pour éviter la volatilité</p>
-                  </div>
-                </div>
+              <div className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                  3
+                </span>
+                <p className="text-sm">Générez le QR code</p>
               </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+              <div className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                  4
+                </span>
+                <p className="text-sm">Le client scanne et paye</p>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Actions */}
-      <div className="flex space-x-4">
-        <Button variant="outline" onClick={refreshPayment} className="flex-1 bg-transparent">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Actualiser
-        </Button>
-        <Button variant="outline" onClick={() => onNavigate("tpe-billing")} className="flex-1">
-          Annuler
-        </Button>
+          {/* Statut système */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Statut Système</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Réseau Bitcoin</span>
+                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20">🟢 Actif</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Réseau Ethereum</span>
+                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20">🟢 Actif</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Prix Crypto</span>
+                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20">🟢 Sync</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-
-      {/* Instructions */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardContent className="pt-6">
-          <div className="space-y-3">
-            <h3 className="font-medium text-blue-900">Instructions pour le client</h3>
-            <div className="space-y-2 text-sm text-blue-700">
-              <div className="flex items-start space-x-2">
-                <Smartphone className="h-4 w-4 mt-0.5" />
-                <span>Ouvrez votre wallet crypto sur votre téléphone</span>
-              </div>
-              <div className="flex items-start space-x-2">
-                <QrCode className="h-4 w-4 mt-0.5" />
-                <span>Scannez le QR code ou copiez l'adresse</span>
-              </div>
-              <div className="flex items-start space-x-2">
-                <CheckCircle className="h-4 w-4 mt-0.5" />
-                <span>Confirmez le paiement dans votre wallet</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

@@ -26,6 +26,12 @@ export interface NetworkFees {
   fast: string
 }
 
+export interface CryptoBalance {
+  bitcoin: string
+  ethereum: string
+  algorand: string
+}
+
 // Service Ethereum optimisé avec timeout réduit
 export class EthereumService {
   private infuraKey = "eae8428d4ae4477e946ac8f8301f2bce"
@@ -349,13 +355,117 @@ export class ERC20Service {
   }
 }
 
+// Service Algorand optimisé
+export class AlgorandService {
+  async getBalance(address: string): Promise<BlockchainBalance> {
+    try {
+      console.log(`⚡ Récupération rapide du solde ALGO pour: ${address}`)
+
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 3000)
+
+      const response = await fetch(`https://api.algoexplorer.io/v2/account/${address}`, {
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      })
+
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const data = await response.json()
+      const balanceMicroAlgos = data.amount || 0
+      const balanceALGO = (balanceMicroAlgos / 1e6).toFixed(6)
+
+      const algoPrice = 1.5 // Prix fixe
+      const balanceUSD = (Number.parseFloat(balanceALGO) * algoPrice).toFixed(2)
+
+      console.log(`✅ Solde ALGO récupéré: ${balanceALGO} ALGO ($${balanceUSD})`)
+
+      return {
+        symbol: "ALGO",
+        balance: balanceALGO,
+        balanceUSD: balanceUSD,
+        address: address,
+      }
+    } catch (error) {
+      console.log(`⚠️ Fallback ALGO pour ${address}:`, error.message)
+      return {
+        symbol: "ALGO",
+        balance: "0.000000",
+        balanceUSD: "0.00",
+        address: address,
+      }
+    }
+  }
+
+  async getTransactions(address: string): Promise<BlockchainTransaction[]> {
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 2000)
+
+      const response = await fetch(`https://api.algoexplorer.io/v2/account/${address}/transactions`, {
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      })
+
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        throw new Error("API indisponible")
+      }
+
+      const data = await response.json()
+
+      if (!data.transactions || !Array.isArray(data.transactions)) {
+        return []
+      }
+
+      const algoPrice = 1.5
+
+      return data.transactions.slice(0, 5).map((tx: any) => {
+        const valueALGO = (tx.amount / 1e6).toFixed(6)
+        const valueUSD = (Number.parseFloat(valueALGO) * algoPrice).toFixed(2)
+        const feeALGO = (tx.fee / 1e6).toFixed(6)
+
+        return {
+          hash: tx.id,
+          from: tx.sender,
+          to: tx.receiver,
+          value: valueALGO,
+          valueUSD: valueUSD,
+          timestamp: tx.round_time * 1000,
+          confirmations: tx.confirmed_round || 0,
+          status: tx.confirmed_round > 0 ? "confirmed" : "pending",
+          fee: feeALGO,
+          blockNumber: tx.round || 0,
+        } as BlockchainTransaction
+      })
+    } catch (error) {
+      console.log("⚠️ Pas de transactions ALGO disponibles")
+      return []
+    }
+  }
+
+  async getNetworkFees(): Promise<NetworkFees> {
+    return {
+      slow: "0.001 algo",
+      standard: "0.002 algo",
+      fast: "0.003 algo",
+    }
+  }
+}
+
 // Service principal optimisé
 export class BlockchainManager {
   private ethereumService = new EthereumService()
   private bitcoinService = new BitcoinService()
   private erc20Service = new ERC20Service()
+  private algorandService = new AlgorandService()
 
-  async getAllBalances(addresses: { eth: string; btc: string }): Promise<BlockchainBalance[]> {
+  async getAllBalances(addresses: { bitcoin: string; ethereum: string; algorand: string }): Promise<CryptoBalance> {
     console.log("⚡ === CHARGEMENT RAPIDE DES SOLDES ===")
 
     try {
@@ -372,11 +482,11 @@ export class BlockchainManager {
           balanceUSD: "0.00",
           address: addresses.eth,
         })),
-        this.bitcoinService.getBalance(addresses.btc).catch(() => ({
+        this.bitcoinService.getBalance(addresses.bitcoin).catch(() => ({
           symbol: "BTC",
           balance: "0.00000000",
           balanceUSD: "0.00",
-          address: addresses.btc,
+          address: addresses.bitcoin,
         })),
         this.erc20Service.getUSDTBalance(addresses.eth).catch(() => ({
           symbol: "USDT",
@@ -384,26 +494,38 @@ export class BlockchainManager {
           balanceUSD: "0.00",
           address: addresses.eth,
         })),
+        this.algorandService.getBalance(addresses.algorand).catch(() => ({
+          symbol: "ALGO",
+          balance: "0.000000",
+          balanceUSD: "0.00",
+          address: addresses.algorand,
+        })),
       ]
 
       // Course entre les promesses et le timeout
       const results = await Promise.race([Promise.all(balancePromises), timeoutPromise])
 
       console.log("✅ Soldes chargés rapidement:", results)
-      return results
+      return {
+        bitcoin: results.find((balance) => balance.symbol === "BTC")?.balance || "0.00000000",
+        ethereum: results.find((balance) => balance.symbol === "ETH")?.balance || "0.000000000000000000",
+        algorand: results.find((balance) => balance.symbol === "ALGO")?.balance || "0.000000",
+      }
     } catch (error) {
       console.log("⚠️ Utilisation des soldes par défaut:", error.message)
 
       // Retourner des soldes par défaut immédiatement
-      return [
-        { symbol: "ETH", balance: "0.000000", balanceUSD: "0.00", address: addresses.eth },
-        { symbol: "BTC", balance: "0.00000000", balanceUSD: "0.00", address: addresses.btc },
-        { symbol: "USDT", balance: "0.00", balanceUSD: "0.00", address: addresses.eth },
-      ]
+      return {
+        bitcoin: "0.00000000",
+        ethereum: "0.000000000000000000",
+        algorand: "0.000000",
+      }
     }
   }
 
-  async getAllTransactions(addresses: { eth: string; btc: string }): Promise<BlockchainTransaction[]> {
+  async getAllTransactions(addresses: { bitcoin: string; ethereum: string; algorand: string }): Promise<
+    BlockchainTransaction[]
+  > {
     console.log("⚡ Chargement rapide des transactions...")
 
     try {
@@ -413,7 +535,8 @@ export class BlockchainManager {
 
       const transactionPromises = [
         this.ethereumService.getTransactions(addresses.eth).catch(() => []),
-        this.bitcoinService.getTransactions(addresses.btc).catch(() => []),
+        this.bitcoinService.getTransactions(addresses.bitcoin).catch(() => []),
+        this.algorandService.getTransactions(addresses.algorand).catch(() => []),
       ]
 
       const results = await Promise.race([Promise.all(transactionPromises), timeoutPromise])
@@ -428,11 +551,53 @@ export class BlockchainManager {
     }
   }
 
-  async getNetworkFees(): Promise<{ eth: NetworkFees; btc: NetworkFees }> {
+  async getNetworkFees(): Promise<{ eth: NetworkFees; btc: NetworkFees; algo: NetworkFees }> {
     // Retourner des frais par défaut immédiatement
     return {
       eth: { slow: "20 gwei", standard: "25 gwei", fast: "30 gwei" },
       btc: { slow: "10 sat/vB", standard: "20 sat/vB", fast: "30 sat/vB" },
+      algo: { slow: "0.001 algo", standard: "0.002 algo", fast: "0.003 algo" },
     }
   }
+}
+
+export async function fetchBalances(addresses: {
+  bitcoin: string
+  ethereum: string
+  algorand: string
+}): Promise<CryptoBalance> {
+  // Simulate API call delay
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+
+  // In a real application, you would use actual blockchain APIs here.
+  // For example:
+  // - Bitcoin: BlockCypher, Blockstream, etc.
+  // - Ethereum: Etherscan, Infura, Alchemy, etc.
+  // - Algorand: AlgoExplorer, PureStake, etc.
+
+  console.log("Fetching simulated balances for addresses:", addresses)
+
+  return {
+    bitcoin: "0.00000000", // Placeholder balance
+    ethereum: "0.000000000000000000", // Placeholder balance
+    algorand: "0.000000", // Placeholder balance
+  }
+}
+
+export async function sendTransaction(
+  crypto: "bitcoin" | "ethereum" | "algorand",
+  senderAddress: string,
+  recipientAddress: string,
+  amount: string,
+  privateKey: string, // In a real app, this would be handled securely, not passed directly
+): Promise<{ txId: string }> {
+  // Simulate API call delay
+  await new Promise((resolve) => setTimeout(resolve, 2000))
+
+  console.log(`Simulating sending ${amount} ${crypto} from ${senderAddress} to ${recipientAddress}`)
+
+  // In a real application, you would sign and broadcast the transaction.
+  // This is a highly simplified placeholder.
+
+  return { txId: `simulated_tx_${Date.now()}` }
 }

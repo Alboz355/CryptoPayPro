@@ -1,149 +1,246 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Copy, Share } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ArrowLeft, Copy, Download, Share2, QrCode } from "lucide-react"
+import { generateCryptoAddress } from "@/lib/wallet-utils"
+import { useToast } from "@/hooks/use-toast"
 import type { AppState } from "@/app/page"
 
 interface ReceivePageProps {
-  walletData: any
   onNavigate: (page: AppState) => void
+  walletData: any
 }
 
-export function ReceivePage({ walletData, onNavigate }: ReceivePageProps) {
-  const [selectedCrypto, setSelectedCrypto] = useState("ETH")
+export function ReceivePage({ onNavigate, walletData }: ReceivePageProps) {
+  const [selectedCrypto, setSelectedCrypto] = useState<"bitcoin" | "ethereum" | "algorand">("bitcoin")
   const [amount, setAmount] = useState("")
-  const [message, setMessage] = useState("")
+  const [qrCodeUrl, setQrCodeUrl] = useState("")
+  const { toast } = useToast()
 
-  const cryptos = [
-    { symbol: "ETH", name: "Ethereum" },
-    { symbol: "BTC", name: "Bitcoin" },
-    { symbol: "USDT", name: "Tether" },
-  ]
-
-  const copyAddress = () => {
-    navigator.clipboard.writeText(walletData.address)
-    alert("Adresse copiée !")
+  const cryptoInfo = {
+    bitcoin: {
+      name: "Bitcoin",
+      symbol: "BTC",
+      color: "bg-orange-500",
+      address: walletData?.addresses?.bitcoin || generateCryptoAddress("bitcoin"),
+    },
+    ethereum: {
+      name: "Ethereum",
+      symbol: "ETH",
+      color: "bg-blue-500",
+      address: walletData?.addresses?.ethereum || generateCryptoAddress("ethereum"),
+    },
+    algorand: {
+      name: "Algorand",
+      symbol: "ALGO",
+      color: "bg-black",
+      address: walletData?.addresses?.algorand || generateCryptoAddress("algorand"),
+    },
   }
 
-  const shareAddress = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: "Mon adresse de portefeuille",
-        text: `Voici mon adresse ${selectedCrypto}: ${walletData.address}`,
+  useEffect(() => {
+    generateQRCode()
+  }, [selectedCrypto, amount])
+
+  const generateQRCode = () => {
+    const crypto = cryptoInfo[selectedCrypto]
+    let qrData = crypto.address
+
+    // Créer une URI standard pour chaque crypto avec montant optionnel
+    if (amount && Number.parseFloat(amount) > 0) {
+      switch (selectedCrypto) {
+        case "bitcoin":
+          qrData = `bitcoin:${crypto.address}?amount=${amount}`
+          break
+        case "ethereum":
+          qrData = `ethereum:${crypto.address}?value=${Number.parseFloat(amount) * 1e18}` // Wei
+          break
+        case "algorand":
+          qrData = `algorand:${crypto.address}?amount=${Number.parseFloat(amount) * 1e6}` // microAlgos
+          break
+      }
+    }
+
+    // Utiliser l'API QR Server pour générer un vrai QR code
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}`
+    setQrCodeUrl(qrUrl)
+  }
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast({
+        title: "Copié !",
+        description: `${label} copié dans le presse-papiers`,
+      })
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de copier dans le presse-papiers",
+        variant: "destructive",
       })
     }
   }
 
-  // Générer un QR code simple (placeholder)
-  const qrCodeUrl = `/placeholder.svg?height=200&width=200&text=${encodeURIComponent(walletData.address)}`
+  const downloadQRCode = () => {
+    const link = document.createElement("a")
+    link.href = qrCodeUrl
+    link.download = `qr-${selectedCrypto}-${Date.now()}.png`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    toast({
+      title: "QR Code téléchargé",
+      description: "Le QR code a été sauvegardé",
+    })
+  }
+
+  const shareQRCode = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Adresse ${cryptoInfo[selectedCrypto].name}`,
+          text: `Mon adresse ${cryptoInfo[selectedCrypto].name}: ${cryptoInfo[selectedCrypto].address}`,
+          url: qrCodeUrl,
+        })
+      } catch (error) {
+        console.log("Partage annulé")
+      }
+    } else {
+      copyToClipboard(cryptoInfo[selectedCrypto].address, "Adresse")
+    }
+  }
+
+  const currentCrypto = cryptoInfo[selectedCrypto]
 
   return (
-    <div className="min-h-screen p-4 space-y-6">
-      {/* Header */}
-      <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="icon" onClick={() => onNavigate("dashboard")}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-2xl font-bold">Recevoir</h1>
+    <div className="min-h-screen bg-background p-4">
+      <div className="max-w-md mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="icon" onClick={() => onNavigate("dashboard")}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-semibold">Recevoir</h1>
+          <div className="w-10" />
+        </div>
+
+        {/* Crypto Selection */}
+        <Tabs value={selectedCrypto} onValueChange={(value) => setSelectedCrypto(value as any)}>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="bitcoin">BTC</TabsTrigger>
+            <TabsTrigger value="ethereum">ETH</TabsTrigger>
+            <TabsTrigger value="algorand">ALGO</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value={selectedCrypto} className="space-y-6">
+            {/* Crypto Info */}
+            <Card>
+              <CardHeader className="text-center">
+                <div
+                  className={`w-16 h-16 ${currentCrypto.color} rounded-full mx-auto mb-2 flex items-center justify-center`}
+                >
+                  <span className="text-white font-bold text-xl">{currentCrypto.symbol.charAt(0)}</span>
+                </div>
+                <CardTitle>{currentCrypto.name}</CardTitle>
+                <Badge variant="secondary">{currentCrypto.symbol}</Badge>
+              </CardHeader>
+            </Card>
+
+            {/* Amount Input (Optional) */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Montant (optionnel)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Montant en {currentCrypto.symbol}</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="any"
+                    placeholder={`0.00 ${currentCrypto.symbol}`}
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                  />
+                  <p className="text-sm text-muted-foreground">Laissez vide pour recevoir n'importe quel montant</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* QR Code */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center">
+                  <QrCode className="mr-2 h-5 w-5" />
+                  QR Code
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-center space-y-4">
+                <div className="bg-white p-4 rounded-lg inline-block">
+                  <img
+                    src={qrCodeUrl || "/placeholder.svg"}
+                    alt="QR Code"
+                    className="w-64 h-64 mx-auto"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement
+                      target.src = `/placeholder.svg?height=256&width=256&text=QR+Code`
+                    }}
+                  />
+                </div>
+
+                <div className="flex gap-2 justify-center">
+                  <Button variant="outline" size="sm" onClick={downloadQRCode}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Télécharger
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={shareQRCode}>
+                    <Share2 className="mr-2 h-4 w-4" />
+                    Partager
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Address */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Adresse de réception</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="p-3 bg-muted rounded-lg break-all text-sm font-mono">{currentCrypto.address}</div>
+                  <Button
+                    variant="outline"
+                    className="w-full bg-transparent"
+                    onClick={() => copyToClipboard(currentCrypto.address, "Adresse")}
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copier l'adresse
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Warning */}
+            <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20">
+              <CardContent className="pt-6">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  ⚠️ Envoyez uniquement du {currentCrypto.name} ({currentCrypto.symbol}) à cette adresse. L'envoi
+                  d'autres cryptomonnaies pourrait entraîner une perte définitive.
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Recevoir des cryptomonnaies</CardTitle>
-          <CardDescription>Partagez votre adresse pour recevoir des paiements</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Crypto Selection */}
-          <div className="space-y-2">
-            <Label>Cryptomonnaie</Label>
-            <Select value={selectedCrypto} onValueChange={setSelectedCrypto}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {cryptos.map((crypto) => (
-                  <SelectItem key={crypto.symbol} value={crypto.symbol}>
-                    {crypto.name} ({crypto.symbol})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* QR Code */}
-          <div className="flex justify-center">
-            <div className="p-4 bg-white rounded-lg border-2 border-gray-200">
-              <img src={qrCodeUrl || "/placeholder.svg"} alt="QR Code" className="w-48 h-48" />
-            </div>
-          </div>
-
-          {/* Address */}
-          <div className="space-y-2">
-            <Label>Votre adresse {selectedCrypto}</Label>
-            <div className="flex space-x-2">
-              <Input value={walletData.address} readOnly className="flex-1 font-mono text-sm" />
-              <Button variant="outline" size="icon" onClick={copyAddress}>
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={shareAddress}>
-                <Share className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Optional Amount */}
-          <div className="space-y-2">
-            <Label htmlFor="amount">Montant (optionnel)</Label>
-            <Input
-              id="amount"
-              type="number"
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-            <p className="text-sm text-gray-600">Spécifiez un montant pour faciliter le paiement</p>
-          </div>
-
-          {/* Optional Message */}
-          <div className="space-y-2">
-            <Label htmlFor="message">Message (optionnel)</Label>
-            <Input
-              id="message"
-              placeholder="Pour quoi est ce paiement..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-            />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline" onClick={copyAddress}>
-              <Copy className="h-4 w-4 mr-2" />
-              Copier l'adresse
-            </Button>
-            <Button onClick={shareAddress}>
-              <Share className="h-4 w-4 mr-2" />
-              Partager
-            </Button>
-          </div>
-
-          {/* Info */}
-          <div className="rounded-lg bg-blue-50 p-4">
-            <div className="text-sm text-blue-800">
-              <p className="font-medium">Information importante :</p>
-              <p className="mt-1">
-                Envoyez uniquement des {selectedCrypto} à cette adresse. L'envoi d'autres cryptomonnaies pourrait
-                entraîner une perte permanente.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

@@ -1,484 +1,294 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
-import {
-  ArrowLeft,
-  Settings,
-  Store,
-  Bell,
-  Shield,
-  Wifi,
-  CreditCard,
-  Mail,
-  Smartphone,
-  Save,
-  RotateCcw,
-  Calculator,
-} from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
+import { ArrowLeft, Settings, Printer, Wifi, Volume2, Shield } from "lucide-react"
 import type { AppState } from "@/app/page"
-
-interface TPESettings {
-  // Informations commerciales
-  businessName: string
-  businessAddress: string
-  businessPhone: string
-  businessEmail: string
-  taxNumber: string
-
-  // Paramètres de paiement
-  defaultCurrency: string
-  acceptedCryptos: string[]
-  autoConvertThreshold: number
-  autoConvertEnabled: boolean
-
-  // Notifications
-  emailNotifications: boolean
-  smsNotifications: boolean
-  pushNotifications: boolean
-
-  // Sécurité
-  requirePin: boolean
-  sessionTimeout: number
-
-  // TPE
-  tpeConnectionType: string
-  tpeAutoReconnect: boolean
-  tpeSoundEnabled: boolean
-}
 
 interface TPESettingsPageProps {
   onNavigate: (page: AppState) => void
 }
 
 export function TPESettingsPage({ onNavigate }: TPESettingsPageProps) {
-  const [settings, setSettings] = useState<TPESettings>({
-    businessName: "",
-    businessAddress: "",
-    businessPhone: "",
-    businessEmail: "",
-    taxNumber: "",
-    defaultCurrency: "CHF",
-    acceptedCryptos: ["BTC", "ETH", "USDT"],
-    autoConvertThreshold: 100,
-    autoConvertEnabled: true,
-    emailNotifications: true,
-    smsNotifications: false,
-    pushNotifications: true,
-    requirePin: true,
-    sessionTimeout: 15,
-    tpeConnectionType: "bluetooth",
-    tpeAutoReconnect: true,
-    tpeSoundEnabled: true,
+  const [settings, setSettings] = useState({
+    merchantName: "Mon Commerce",
+    merchantId: "MC001",
+    autoConfirm: true,
+    printReceipts: true,
+    soundEnabled: true,
+    notifications: true,
+    language: "fr",
+    currency: "EUR",
+    taxRate: "20",
+    receiptFooter: "Merci de votre visite !",
+    wifiEnabled: true,
+    securityPin: true,
   })
 
-  const [hasChanges, setHasChanges] = useState(false)
-
-  const currencies = [
-    { code: "CHF", name: "Franc Suisse" },
-    { code: "EUR", name: "Euro" },
-    { code: "USD", name: "Dollar US" },
-  ]
-
-  const cryptos = [
-    { symbol: "BTC", name: "Bitcoin" },
-    { symbol: "ETH", name: "Ethereum" },
-    { symbol: "USDT", name: "Tether" },
-    { symbol: "USDC", name: "USD Coin" },
-    { symbol: "CHFM", name: "Swiss Franc Token" },
-  ]
-
-  useEffect(() => {
-    // Charger les paramètres sauvegardés
-    const savedSettings = localStorage.getItem("tpe-settings")
-    if (savedSettings) {
-      setSettings(JSON.parse(savedSettings))
-    }
-  }, [])
-
-  const handleSettingChange = (key: keyof TPESettings, value: any) => {
+  const handleSettingChange = (key: string, value: any) => {
     setSettings((prev) => ({ ...prev, [key]: value }))
-    setHasChanges(true)
   }
 
-  const handleCryptoToggle = (crypto: string) => {
-    const newAcceptedCryptos = settings.acceptedCryptos.includes(crypto)
-      ? settings.acceptedCryptos.filter((c) => c !== crypto)
-      : [...settings.acceptedCryptos, crypto]
-
-    handleSettingChange("acceptedCryptos", newAcceptedCryptos)
-  }
-
-  const saveSettings = () => {
+  const handleSave = () => {
+    // Sauvegarder les paramètres
     localStorage.setItem("tpe-settings", JSON.stringify(settings))
-    setHasChanges(false)
     alert("Paramètres sauvegardés avec succès !")
   }
 
-  const resetSettings = () => {
+  const handleReset = () => {
     if (confirm("Êtes-vous sûr de vouloir réinitialiser tous les paramètres ?")) {
       localStorage.removeItem("tpe-settings")
       setSettings({
-        businessName: "",
-        businessAddress: "",
-        businessPhone: "",
-        businessEmail: "",
-        taxNumber: "",
-        defaultCurrency: "CHF",
-        acceptedCryptos: ["BTC", "ETH", "USDT"],
-        autoConvertThreshold: 100,
-        autoConvertEnabled: true,
-        emailNotifications: true,
-        smsNotifications: false,
-        pushNotifications: true,
-        requirePin: true,
-        sessionTimeout: 15,
-        tpeConnectionType: "bluetooth",
-        tpeAutoReconnect: true,
-        tpeSoundEnabled: true,
+        merchantName: "Mon Commerce",
+        merchantId: "MC001",
+        autoConfirm: true,
+        printReceipts: true,
+        soundEnabled: true,
+        notifications: true,
+        language: "fr",
+        currency: "EUR",
+        taxRate: "20",
+        receiptFooter: "Merci de votre visite !",
+        wifiEnabled: true,
+        securityPin: true,
       })
-      setHasChanges(false)
     }
   }
 
   return (
-    <div className="min-h-screen p-4 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+    <div className="min-h-screen bg-background p-4">
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
           <Button variant="ghost" size="icon" onClick={() => onNavigate("tpe")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Paramètres TPE</h1>
-            <p className="text-gray-600">Configuration du terminal de paiement</p>
-          </div>
+          <h1 className="text-xl font-semibold flex items-center">
+            <Settings className="mr-2 h-5 w-5" />
+            Paramètres TPE
+          </h1>
+          <div className="w-10" />
         </div>
 
-        <div className="flex space-x-2">
-          <Button variant="outline" onClick={resetSettings}>
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Réinitialiser
-          </Button>
-          <Button onClick={saveSettings} disabled={!hasChanges}>
-            <Save className="h-4 w-4 mr-2" />
-            Sauvegarder
-          </Button>
-        </div>
-      </div>
-
-      {/* Informations commerciales */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Store className="h-5 w-5" />
-            <span>Informations commerciales</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        {/* Informations du commerçant */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Informations du commerçant</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="businessName">Nom de l'entreprise</Label>
+              <Label htmlFor="merchantName">Nom du commerce</Label>
               <Input
-                id="businessName"
-                value={settings.businessName}
-                onChange={(e) => handleSettingChange("businessName", e.target.value)}
-                placeholder="Mon Commerce"
+                id="merchantName"
+                value={settings.merchantName}
+                onChange={(e) => handleSettingChange("merchantName", e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="merchantId">ID Commerçant</Label>
+              <Input
+                id="merchantId"
+                value={settings.merchantId}
+                onChange={(e) => handleSettingChange("merchantId", e.target.value)}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Paramètres de transaction */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Paramètres de transaction</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Confirmation automatique</Label>
+                <p className="text-sm text-muted-foreground">Confirmer automatiquement les paiements</p>
+              </div>
+              <Switch
+                checked={settings.autoConfirm}
+                onCheckedChange={(checked) => handleSettingChange("autoConfirm", checked)}
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="businessEmail">Email professionnel</Label>
-              <Input
-                id="businessEmail"
-                type="email"
-                value={settings.businessEmail}
-                onChange={(e) => handleSettingChange("businessEmail", e.target.value)}
-                placeholder="contact@moncommerce.ch"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="businessAddress">Adresse</Label>
-            <Textarea
-              id="businessAddress"
-              value={settings.businessAddress}
-              onChange={(e) => handleSettingChange("businessAddress", e.target.value)}
-              placeholder="Rue de la Paix 123, 1000 Lausanne"
-              rows={2}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="businessPhone">Téléphone</Label>
-              <Input
-                id="businessPhone"
-                value={settings.businessPhone}
-                onChange={(e) => handleSettingChange("businessPhone", e.target.value)}
-                placeholder="+41 21 123 45 67"
-              />
-            </div>
+            <Separator />
 
             <div className="space-y-2">
-              <Label htmlFor="taxNumber">Numéro TVA</Label>
-              <Input
-                id="taxNumber"
-                value={settings.taxNumber}
-                onChange={(e) => handleSettingChange("taxNumber", e.target.value)}
-                placeholder="CHE-123.456.789"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Paramètres de paiement */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <CreditCard className="h-5 w-5" />
-            <span>Paramètres de paiement</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Devise par défaut</Label>
-              <Select
-                value={settings.defaultCurrency}
-                onValueChange={(value) => handleSettingChange("defaultCurrency", value)}
-              >
+              <Label htmlFor="currency">Devise</Label>
+              <Select value={settings.currency} onValueChange={(value) => handleSettingChange("currency", value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {currencies.map((currency) => (
-                    <SelectItem key={currency.code} value={currency.code}>
-                      {currency.name} ({currency.code})
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="EUR">Euro (EUR)</SelectItem>
+                  <SelectItem value="USD">Dollar US (USD)</SelectItem>
+                  <SelectItem value="CHF">Franc Suisse (CHF)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label>Seuil de conversion auto (CHF)</Label>
+              <Label htmlFor="taxRate">Taux de TVA (%)</Label>
               <Input
+                id="taxRate"
                 type="number"
-                value={settings.autoConvertThreshold}
-                onChange={(e) => handleSettingChange("autoConvertThreshold", Number.parseFloat(e.target.value))}
+                value={settings.taxRate}
+                onChange={(e) => handleSettingChange("taxRate", e.target.value)}
               />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base">Conversion automatique en CHFM</Label>
-              <p className="text-sm text-gray-600">Convertir automatiquement les cryptos reçues</p>
-            </div>
-            <Switch
-              checked={settings.autoConvertEnabled}
-              onCheckedChange={(checked) => handleSettingChange("autoConvertEnabled", checked)}
-            />
-          </div>
-
-          <div className="space-y-3">
-            <Label>Cryptomonnaies acceptées</Label>
-            <div className="grid grid-cols-2 gap-3">
-              {cryptos.map((crypto) => (
-                <div key={crypto.symbol} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id={crypto.symbol}
-                    checked={settings.acceptedCryptos.includes(crypto.symbol)}
-                    onChange={() => handleCryptoToggle(crypto.symbol)}
-                    className="rounded"
-                  />
-                  <Label htmlFor={crypto.symbol} className="text-sm">
-                    {crypto.name} ({crypto.symbol})
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="pt-4 border-t">
-            <Button variant="outline" onClick={() => onNavigate("tpe-vat")} className="w-full">
-              <Calculator className="h-4 w-4 mr-2" />
-              Gestion TVA automatique
-            </Button>
-            <p className="text-sm text-gray-600 mt-2">Configurer le calcul et transfert automatique de la TVA</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Notifications */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Bell className="h-5 w-5" />
-            <span>Notifications</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Mail className="h-4 w-4" />
-              <div>
-                <Label className="text-base">Notifications email</Label>
-                <p className="text-sm text-gray-600">Recevoir les confirmations par email</p>
-              </div>
-            </div>
-            <Switch
-              checked={settings.emailNotifications}
-              onCheckedChange={(checked) => handleSettingChange("emailNotifications", checked)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Smartphone className="h-4 w-4" />
-              <div>
-                <Label className="text-base">Notifications SMS</Label>
-                <p className="text-sm text-gray-600">Recevoir les alertes par SMS</p>
-              </div>
-            </div>
-            <Switch
-              checked={settings.smsNotifications}
-              onCheckedChange={(checked) => handleSettingChange("smsNotifications", checked)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Bell className="h-4 w-4" />
-              <div>
-                <Label className="text-base">Notifications push</Label>
-                <p className="text-sm text-gray-600">Notifications dans l'application</p>
-              </div>
-            </div>
-            <Switch
-              checked={settings.pushNotifications}
-              onCheckedChange={(checked) => handleSettingChange("pushNotifications", checked)}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Sécurité */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Shield className="h-5 w-5" />
-            <span>Sécurité</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base">Exiger un PIN</Label>
-              <p className="text-sm text-gray-600">Demander le PIN pour chaque transaction</p>
-            </div>
-            <Switch
-              checked={settings.requirePin}
-              onCheckedChange={(checked) => handleSettingChange("requirePin", checked)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Timeout de session (minutes)</Label>
-            <Select
-              value={settings.sessionTimeout.toString()}
-              onValueChange={(value) => handleSettingChange("sessionTimeout", Number.parseInt(value))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">5 minutes</SelectItem>
-                <SelectItem value="15">15 minutes</SelectItem>
-                <SelectItem value="30">30 minutes</SelectItem>
-                <SelectItem value="60">1 heure</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Paramètres TPE */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Wifi className="h-5 w-5" />
-            <span>Terminal de paiement</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Type de connexion préféré</Label>
-            <Select
-              value={settings.tpeConnectionType}
-              onValueChange={(value) => handleSettingChange("tpeConnectionType", value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="bluetooth">Bluetooth</SelectItem>
-                <SelectItem value="usb">USB</SelectItem>
-                <SelectItem value="wifi">WiFi</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base">Reconnexion automatique</Label>
-              <p className="text-sm text-gray-600">Se reconnecter automatiquement au TPE</p>
-            </div>
-            <Switch
-              checked={settings.tpeAutoReconnect}
-              onCheckedChange={(checked) => handleSettingChange("tpeAutoReconnect", checked)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-base">Sons du terminal</Label>
-              <p className="text-sm text-gray-600">Activer les bips de confirmation</p>
-            </div>
-            <Switch
-              checked={settings.tpeSoundEnabled}
-              onCheckedChange={(checked) => handleSettingChange("tpeSoundEnabled", checked)}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Sauvegarde */}
-      {hasChanges && (
-        <Card className="bg-yellow-50 border-yellow-200">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Settings className="h-5 w-5 text-yellow-600" />
-                <span className="text-yellow-800 font-medium">Vous avez des modifications non sauvegardées</span>
-              </div>
-              <Button onClick={saveSettings} className="bg-yellow-600 hover:bg-yellow-700">
-                <Save className="h-4 w-4 mr-2" />
-                Sauvegarder maintenant
-              </Button>
             </div>
           </CardContent>
         </Card>
-      )}
+
+        {/* Paramètres d'impression */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Printer className="mr-2 h-5 w-5" />
+              Impression
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Imprimer les reçus</Label>
+                <p className="text-sm text-muted-foreground">Imprimer automatiquement les reçus</p>
+              </div>
+              <Switch
+                checked={settings.printReceipts}
+                onCheckedChange={(checked) => handleSettingChange("printReceipts", checked)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="receiptFooter">Pied de page du reçu</Label>
+              <Input
+                id="receiptFooter"
+                value={settings.receiptFooter}
+                onChange={(e) => handleSettingChange("receiptFooter", e.target.value)}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Paramètres audio et notifications */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Volume2 className="mr-2 h-5 w-5" />
+              Audio et notifications
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Sons activés</Label>
+                <p className="text-sm text-muted-foreground">Jouer des sons pour les événements</p>
+              </div>
+              <Switch
+                checked={settings.soundEnabled}
+                onCheckedChange={(checked) => handleSettingChange("soundEnabled", checked)}
+              />
+            </div>
+
+            <Separator />
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Notifications</Label>
+                <p className="text-sm text-muted-foreground">Afficher les notifications push</p>
+              </div>
+              <Switch
+                checked={settings.notifications}
+                onCheckedChange={(checked) => handleSettingChange("notifications", checked)}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Paramètres de connectivité */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Wifi className="mr-2 h-5 w-5" />
+              Connectivité
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Wi-Fi activé</Label>
+                <p className="text-sm text-muted-foreground">Utiliser la connexion Wi-Fi</p>
+              </div>
+              <Switch
+                checked={settings.wifiEnabled}
+                onCheckedChange={(checked) => handleSettingChange("wifiEnabled", checked)}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Paramètres de sécurité */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Shield className="mr-2 h-5 w-5" />
+              Sécurité
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Code PIN requis</Label>
+                <p className="text-sm text-muted-foreground">Demander le PIN pour les paramètres</p>
+              </div>
+              <Switch
+                checked={settings.securityPin}
+                onCheckedChange={(checked) => handleSettingChange("securityPin", checked)}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Paramètres de langue */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Langue et région</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="language">Langue</Label>
+              <Select value={settings.language} onValueChange={(value) => handleSettingChange("language", value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fr">Français</SelectItem>
+                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="de">Deutsch</SelectItem>
+                  <SelectItem value="es">Español</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Actions */}
+        <div className="flex gap-4">
+          <Button onClick={handleSave} className="flex-1">
+            Sauvegarder
+          </Button>
+          <Button variant="outline" onClick={handleReset} className="flex-1 bg-transparent">
+            Réinitialiser
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

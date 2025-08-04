@@ -1,39 +1,54 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Lock, Eye, EyeOff } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Shield, Eye, EyeOff, CheckCircle, AlertTriangle, Lock } from "lucide-react"
 
 interface PinSetupPageProps {
   onPinCreated: (pin: string) => void
 }
 
 export function PinSetupPage({ onPinCreated }: PinSetupPageProps) {
-  const [pinLength, setPinLength] = useState("4")
   const [pin, setPin] = useState("")
   const [confirmPin, setConfirmPin] = useState("")
   const [showPin, setShowPin] = useState(false)
   const [error, setError] = useState("")
+  const [isCreating, setIsCreating] = useState(false)
 
-  const handlePinChange = (value: string) => {
-    const numericValue = value.replace(/\D/g, "").slice(0, Number.parseInt(pinLength))
-    setPin(numericValue)
-    setError("")
+  const validatePin = (pinValue: string) => {
+    if (pinValue.length < 4) {
+      return "Le PIN doit contenir au moins 4 chiffres"
+    }
+    if (pinValue.length > 8) {
+      return "Le PIN ne peut pas dépasser 8 chiffres"
+    }
+    if (!/^\d+$/.test(pinValue)) {
+      return "Le PIN ne peut contenir que des chiffres"
+    }
+    // Vérifier les patterns faibles
+    if (/^(\d)\1+$/.test(pinValue)) {
+      return "Le PIN ne peut pas être composé du même chiffre répété"
+    }
+    if (pinValue === "1234" || pinValue === "0000" || pinValue === "1111") {
+      return "Ce PIN est trop simple, choisissez-en un autre"
+    }
+    return ""
   }
 
-  const handleConfirmPinChange = (value: string) => {
-    const numericValue = value.replace(/\D/g, "").slice(0, Number.parseInt(pinLength))
-    setConfirmPin(numericValue)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setError("")
-  }
 
-  const handleSubmit = () => {
-    if (pin.length !== Number.parseInt(pinLength)) {
-      setError(`Le PIN doit contenir ${pinLength} chiffres`)
+    // Validation
+    const pinError = validatePin(pin)
+    if (pinError) {
+      setError(pinError)
       return
     }
 
@@ -42,95 +57,170 @@ export function PinSetupPage({ onPinCreated }: PinSetupPageProps) {
       return
     }
 
-    onPinCreated(pin)
+    setIsCreating(true)
+
+    try {
+      // Simuler un délai de traitement
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      onPinCreated(pin)
+    } catch (error) {
+      setError("Erreur lors de la création du PIN")
+    } finally {
+      setIsCreating(false)
+    }
   }
 
-  const isValid = pin.length === Number.parseInt(pinLength) && pin === confirmPin
+  const isPinValid = pin.length >= 4 && validatePin(pin) === ""
+  const isPinMatching = pin === confirmPin && confirmPin.length > 0
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-            <Lock className="h-6 w-6 text-green-600" />
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <div className="w-full max-w-md">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-500 shadow-xl">
+            <Shield className="h-8 w-8 text-white" />
           </div>
-          <CardTitle className="text-2xl">Créer un PIN</CardTitle>
-          <CardDescription>Sécurisez votre portefeuille avec un code PIN</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-3">
-            <Label>Longueur du PIN</Label>
-            <RadioGroup value={pinLength} onValueChange={setPinLength}>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="4" id="4" />
-                <Label htmlFor="4">4 chiffres</Label>
+          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Sécuriser votre portefeuille
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300">Créez un PIN pour protéger l'accès à votre portefeuille</p>
+        </div>
+
+        {/* Main Card */}
+        <Card className="shadow-2xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm">
+          <CardHeader className="text-center pb-6">
+            <CardTitle className="text-xl font-bold text-gray-800 dark:text-gray-200 flex items-center justify-center gap-2">
+              <Lock className="h-5 w-5" />
+              Configuration du PIN
+            </CardTitle>
+            <CardDescription className="text-gray-600 dark:text-gray-400">
+              Choisissez un PIN sécurisé de 4 à 8 chiffres
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* PIN Input */}
+              <div className="space-y-2">
+                <Label htmlFor="pin" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Nouveau PIN
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="pin"
+                    type={showPin ? "text" : "password"}
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                    placeholder="Entrez votre PIN"
+                    className="pr-12 text-center text-lg font-mono tracking-widest"
+                    maxLength={8}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8"
+                    onClick={() => setShowPin(!showPin)}
+                  >
+                    {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+                {pin.length > 0 && (
+                  <div className="flex items-center gap-2 text-xs">
+                    {isPinValid ? (
+                      <CheckCircle className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <AlertTriangle className="h-3 w-3 text-amber-500" />
+                    )}
+                    <span
+                      className={
+                        isPinValid ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"
+                      }
+                    >
+                      {isPinValid ? "PIN valide" : validatePin(pin)}
+                    </span>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="5" id="5" />
-                <Label htmlFor="5">5 chiffres</Label>
+
+              {/* Confirm PIN Input */}
+              <div className="space-y-2">
+                <Label htmlFor="confirmPin" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Confirmer le PIN
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPin"
+                    type={showPin ? "text" : "password"}
+                    value={confirmPin}
+                    onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                    placeholder="Confirmez votre PIN"
+                    className="pr-12 text-center text-lg font-mono tracking-widest"
+                    maxLength={8}
+                  />
+                </div>
+                {confirmPin.length > 0 && (
+                  <div className="flex items-center gap-2 text-xs">
+                    {isPinMatching ? (
+                      <CheckCircle className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <AlertTriangle className="h-3 w-3 text-red-500" />
+                    )}
+                    <span
+                      className={
+                        isPinMatching ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                      }
+                    >
+                      {isPinMatching ? "PINs identiques" : "Les PINs ne correspondent pas"}
+                    </span>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="6" id="6" />
-                <Label htmlFor="6">6 chiffres</Label>
+
+              {/* Security Tips */}
+              <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2">Conseils de sécurité :</h4>
+                <ul className="text-xs text-blue-700 dark:text-blue-400 space-y-1">
+                  <li>• Utilisez un PIN unique que vous seul connaissez</li>
+                  <li>• Évitez les séquences simples (1234, 0000)</li>
+                  <li>• Ne partagez jamais votre PIN avec personne</li>
+                  <li>• Mémorisez-le plutôt que de l'écrire</li>
+                </ul>
               </div>
-            </RadioGroup>
-          </div>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="pin">PIN</Label>
-              <div className="relative">
-                <Input
-                  id="pin"
-                  type={showPin ? "text" : "password"}
-                  value={pin}
-                  onChange={(e) => handlePinChange(e.target.value)}
-                  placeholder={`Entrez ${pinLength} chiffres`}
-                  maxLength={Number.parseInt(pinLength)}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowPin(!showPin)}
-                >
-                  {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                disabled={!isPinValid || !isPinMatching || isCreating}
+                className="w-full h-12 text-base font-medium bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 touch-target"
+              >
+                {isCreating ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Configuration en cours...
+                  </div>
+                ) : (
+                  "🔒 Sécuriser mon portefeuille"
+                )}
+              </Button>
+            </form>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirm-pin">Confirmer le PIN</Label>
-              <Input
-                id="confirm-pin"
-                type={showPin ? "text" : "password"}
-                value={confirmPin}
-                onChange={(e) => handleConfirmPinChange(e.target.value)}
-                placeholder={`Confirmez ${pinLength} chiffres`}
-                maxLength={Number.parseInt(pinLength)}
-              />
-            </div>
-          </div>
+            {/* Error Message */}
+            {error && (
+              <Alert className="mt-4 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20">
+                <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                <AlertDescription className="text-red-600 dark:text-red-400">{error}</AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
 
-          {error && <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">{error}</div>}
-
-          <div className="rounded-lg bg-blue-50 p-4">
-            <div className="text-sm text-blue-800">
-              <p className="font-medium">Conseils de sécurité :</p>
-              <ul className="mt-1 list-disc list-inside space-y-1">
-                <li>Choisissez un PIN unique</li>
-                <li>Ne partagez jamais votre PIN</li>
-                <li>Évitez les séquences évidentes (1234, 0000)</li>
-              </ul>
-            </div>
-          </div>
-
-          <Button onClick={handleSubmit} className="w-full" disabled={!isValid}>
-            Créer le PIN
-          </Button>
-        </CardContent>
-      </Card>
+        {/* Footer */}
+        <div className="text-center mt-6 text-xs text-gray-500 dark:text-gray-400">
+          <p>🔐 Votre PIN est stocké localement et chiffré sur votre appareil</p>
+        </div>
+      </div>
     </div>
   )
 }

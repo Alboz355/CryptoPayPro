@@ -9,6 +9,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-}
+  // Add any specific Next.js configurations here
+  // For example, if you need to enable experimental features or modify webpack config
+};
 
-export default nextConfig
+export default nextConfig;

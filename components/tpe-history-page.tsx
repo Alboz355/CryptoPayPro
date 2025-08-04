@@ -1,451 +1,376 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, History, Filter, Download, Search, ArrowLeftRight, Euro, BarChart3 } from "lucide-react"
-import type { AppState } from "@/app/page"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Search,
+  Download,
+  Filter,
+  Eye,
+  Receipt,
+  TrendingUp,
+  DollarSign,
+  CreditCard,
+  ArrowUpRight,
+  ArrowDownRight,
+} from "lucide-react"
 
 interface Transaction {
   id: string
-  type: "payment" | "conversion"
-  amount: number
-  currency: string
-  toCurrency?: string
-  toAmount?: number
-  description?: string
-  customerEmail?: string
+  date: string
+  time: string
+  customer: string
+  type: "payment" | "refund" | "conversion"
+  cryptoAmount: string
+  cryptoSymbol: string
+  fiatAmount: string
+  fiatCurrency: string
   status: "completed" | "pending" | "failed"
-  timestamp: string
+  invoice?: string
+  rate: string
 }
 
-interface TPEHistoryPageProps {
-  onNavigate: (page: AppState) => void
-}
+// Données de test
+const mockTransactions: Transaction[] = [
+  {
+    id: "TX001",
+    date: "2024-01-15",
+    time: "14:30",
+    customer: "Marie Dubois",
+    type: "payment",
+    cryptoAmount: "0.05",
+    cryptoSymbol: "BTC",
+    fiatAmount: "2,150.00",
+    fiatCurrency: "CHF",
+    status: "completed",
+    invoice: "INV-001",
+    rate: "43,000.00",
+  },
+  {
+    id: "TX002",
+    date: "2024-01-15",
+    time: "13:45",
+    customer: "Jean Martin",
+    type: "conversion",
+    cryptoAmount: "5.2",
+    cryptoSymbol: "ETH",
+    fiatAmount: "12,480.00",
+    fiatCurrency: "CHF",
+    status: "completed",
+    rate: "2,400.00",
+  },
+  {
+    id: "TX003",
+    date: "2024-01-15",
+    time: "12:20",
+    customer: "Anna Schmidt",
+    type: "payment",
+    cryptoAmount: "1000",
+    cryptoSymbol: "ALGO",
+    fiatAmount: "320.00",
+    fiatCurrency: "CHF",
+    status: "pending",
+    invoice: "INV-002",
+    rate: "0.32",
+  },
+  {
+    id: "TX004",
+    date: "2024-01-14",
+    time: "16:15",
+    customer: "Pierre Müller",
+    type: "refund",
+    cryptoAmount: "0.02",
+    cryptoSymbol: "BTC",
+    fiatAmount: "860.00",
+    fiatCurrency: "CHF",
+    status: "completed",
+    invoice: "INV-003",
+    rate: "43,000.00",
+  },
+]
 
-export function TPEHistoryPage({ onNavigate }: TPEHistoryPageProps) {
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([])
+export function TPEHistoryPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterType, setFilterType] = useState("all")
-  const [filterPeriod, setFilterPeriod] = useState("today")
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
+  const [filterStatus, setFilterStatus] = useState("all")
+  const [selectedDate, setSelectedDate] = useState("")
 
-  // Statistiques
-  const [stats, setStats] = useState({
-    today: { transactions: 0, volume: 0, conversions: 0 },
-    week: { transactions: 0, volume: 0, conversions: 0 },
-    month: { transactions: 0, volume: 0, conversions: 0 },
+  // Filtrer les transactions
+  const filteredTransactions = mockTransactions.filter((tx) => {
+    const matchesSearch =
+      tx.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tx.id.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesType = filterType === "all" || tx.type === filterType
+    const matchesStatus = filterStatus === "all" || tx.status === filterStatus
+    const matchesDate = !selectedDate || tx.date === selectedDate
+
+    return matchesSearch && matchesType && matchesStatus && matchesDate
   })
 
-  useEffect(() => {
-    // Charger les transactions TPE
-    const tpeTransactions = JSON.parse(localStorage.getItem("tpe-transactions") || "[]")
-    const tpeConversions = JSON.parse(localStorage.getItem("tpe-conversions") || "[]")
+  // Statistiques
+  const totalVolume = mockTransactions
+    .filter((tx) => tx.status === "completed")
+    .reduce((sum, tx) => sum + Number.parseFloat(tx.fiatAmount.replace(",", "")), 0)
 
-    // Combiner et trier les transactions
-    const allTransactions = [
-      ...tpeTransactions.map((t: any) => ({ ...t, type: "payment" })),
-      ...tpeConversions.map((c: any) => ({ ...c, type: "conversion" })),
-    ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+  const completedTransactions = mockTransactions.filter((tx) => tx.status === "completed").length
+  const pendingTransactions = mockTransactions.filter((tx) => tx.status === "pending").length
 
-    setTransactions(allTransactions)
-    calculateStats(allTransactions)
-  }, [])
-
-  useEffect(() => {
-    // Filtrer les transactions
-    let filtered = transactions
-
-    // Filtre par type
-    if (filterType !== "all") {
-      filtered = filtered.filter((t) => t.type === filterType)
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
+      case "pending":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
+      case "failed":
+        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
     }
+  }
 
-    // Filtre par période
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
-    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
-
-    switch (filterPeriod) {
-      case "today":
-        filtered = filtered.filter((t) => new Date(t.timestamp) >= today)
-        break
-      case "week":
-        filtered = filtered.filter((t) => new Date(t.timestamp) >= weekAgo)
-        break
-      case "month":
-        filtered = filtered.filter((t) => new Date(t.timestamp) >= monthAgo)
-        break
-      case "custom":
-        const selectedDateTime = new Date(selectedDate)
-        const nextDay = new Date(selectedDateTime.getTime() + 24 * 60 * 60 * 1000)
-        filtered = filtered.filter((t) => {
-          const transactionDate = new Date(t.timestamp)
-          return transactionDate >= selectedDateTime && transactionDate < nextDay
-        })
-        break
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case "payment":
+        return <ArrowDownRight className="h-4 w-4 text-green-600" />
+      case "refund":
+        return <ArrowUpRight className="h-4 w-4 text-red-600" />
+      case "conversion":
+        return <CreditCard className="h-4 w-4 text-blue-600" />
+      default:
+        return <DollarSign className="h-4 w-4" />
     }
-
-    // Filtre par recherche
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (t) =>
-          t.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          t.customerEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          t.currency.toLowerCase().includes(searchTerm.toLowerCase()),
-      )
-    }
-
-    setFilteredTransactions(filtered)
-  }, [transactions, filterType, filterPeriod, selectedDate, searchTerm])
-
-  const calculateStats = (transactions: Transaction[]) => {
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
-    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
-
-    const calculatePeriodStats = (startDate: Date) => {
-      const periodTransactions = transactions.filter((t) => new Date(t.timestamp) >= startDate)
-      const payments = periodTransactions.filter((t) => t.type === "payment")
-      const conversions = periodTransactions.filter((t) => t.type === "conversion")
-
-      return {
-        transactions: payments.length,
-        volume: payments.reduce((sum, t) => sum + t.amount, 0),
-        conversions: conversions.length,
-      }
-    }
-
-    setStats({
-      today: calculatePeriodStats(today),
-      week: calculatePeriodStats(weekAgo),
-      month: calculatePeriodStats(monthAgo),
-    })
   }
 
   const exportTransactions = () => {
-    const csvContent = [
-      ["Date", "Type", "Montant", "Devise", "Description", "Email", "Statut"].join(","),
-      ...filteredTransactions.map((t) =>
+    // Simulation d'export CSV
+    const csv = [
+      ["ID", "Date", "Heure", "Client", "Type", "Crypto", "Montant Crypto", "Montant Fiat", "Devise", "Statut"].join(
+        ",",
+      ),
+      ...filteredTransactions.map((tx) =>
         [
-          new Date(t.timestamp).toLocaleString(),
-          t.type === "payment" ? "Paiement" : "Conversion",
-          t.amount,
-          t.currency,
-          t.description || "",
-          t.customerEmail || "",
-          t.status,
+          tx.id,
+          tx.date,
+          tx.time,
+          tx.customer,
+          tx.type,
+          tx.cryptoSymbol,
+          tx.cryptoAmount,
+          tx.fiatAmount,
+          tx.fiatCurrency,
+          tx.status,
         ].join(","),
       ),
     ].join("\n")
 
-    const blob = new Blob([csvContent], { type: "text/csv" })
+    const blob = new Blob([csv], { type: "text/csv" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `tpe-transactions-${new Date().toISOString().split("T")[0]}.csv`
+    a.download = `transactions-${new Date().toISOString().split("T")[0]}.csv`
     a.click()
   }
 
-  const getTransactionIcon = (transaction: Transaction) => {
-    if (transaction.type === "conversion") {
-      return <ArrowLeftRight className="h-4 w-4 text-purple-600" />
-    }
-    return <Euro className="h-4 w-4 text-green-600" />
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <Badge className="bg-green-100 text-green-800">Terminé</Badge>
-      case "pending":
-        return <Badge className="bg-yellow-100 text-yellow-800">En attente</Badge>
-      case "failed":
-        return <Badge className="bg-red-100 text-red-800">Échoué</Badge>
-      default:
-        return <Badge variant="secondary">{status}</Badge>
-    }
-  }
-
   return (
-    <div className="min-h-screen p-4 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon" onClick={() => onNavigate("tpe")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Historique TPE</h1>
-            <p className="text-gray-600">Transactions et statistiques</p>
-          </div>
+    <div className="space-y-6 p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+      {/* En-tête */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">📊 Historique des Transactions</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Consultez et analysez toutes vos transactions</p>
         </div>
-        <Button variant="outline" onClick={exportTransactions}>
+        <Button onClick={exportTransactions} className="bg-green-600 hover:bg-green-700">
           <Download className="h-4 w-4 mr-2" />
-          Exporter
+          Exporter CSV
         </Button>
       </div>
 
-      {/* Onglets */}
-      <Tabs defaultValue="transactions" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          <TabsTrigger value="statistics">Statistiques</TabsTrigger>
-        </TabsList>
-
-        {/* Onglet Transactions */}
-        <TabsContent value="transactions" className="space-y-6">
-          {/* Filtres */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Filter className="h-5 w-5" />
-                <span>Filtres</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Recherche */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Rechercher par description, email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+      {/* Statistiques */}
+      <div className="grid md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Volume Total</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalVolume.toLocaleString()} CHF</p>
               </div>
+              <TrendingUp className="h-8 w-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
 
-              {/* Filtres */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Type</label>
-                  <Select value={filterType} onValueChange={setFilterType}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tous</SelectItem>
-                      <SelectItem value="payment">Paiements</SelectItem>
-                      <SelectItem value="conversion">Conversions</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Période</label>
-                  <Select value={filterPeriod} onValueChange={setFilterPeriod}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="today">Aujourd'hui</SelectItem>
-                      <SelectItem value="week">Cette semaine</SelectItem>
-                      <SelectItem value="month">Ce mois</SelectItem>
-                      <SelectItem value="custom">Date personnalisée</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Transactions</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{mockTransactions.length}</p>
               </div>
+              <Receipt className="h-8 w-8 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
 
-              {/* Sélecteur de date personnalisée */}
-              {filterPeriod === "custom" && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Date</label>
-                  <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Liste des transactions */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Transactions</CardTitle>
-                <Badge variant="outline">
-                  {filteredTransactions.length} résultat{filteredTransactions.length !== 1 ? "s" : ""}
-                </Badge>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Terminées</p>
+                <p className="text-2xl font-bold text-green-600">{completedTransactions}</p>
               </div>
-            </CardHeader>
-            <CardContent>
-              {filteredTransactions.length === 0 ? (
-                <div className="text-center py-8">
-                  <History className="h-8 w-8 mx-auto mb-4 text-gray-400" />
-                  <p className="text-gray-600">Aucune transaction trouvée</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {filteredTransactions.map((transaction) => (
-                    <div key={transaction.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                          {getTransactionIcon(transaction)}
-                        </div>
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <p className="font-medium">
-                              {transaction.type === "payment" ? "Paiement reçu" : "Conversion"}
-                            </p>
-                            {getStatusBadge(transaction.status)}
-                          </div>
-                          <p className="text-sm text-gray-600">{new Date(transaction.timestamp).toLocaleString()}</p>
-                          {transaction.description && (
-                            <p className="text-sm text-gray-500">{transaction.description}</p>
-                          )}
-                        </div>
-                      </div>
+              <ArrowDownRight className="h-8 w-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
 
-                      <div className="text-right">
-                        <p className="font-medium">
-                          {transaction.amount} {transaction.currency}
-                        </p>
-                        {transaction.type === "conversion" && transaction.toAmount && (
-                          <p className="text-sm text-purple-600">
-                            → {transaction.toAmount} {transaction.toCurrency}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">En Attente</p>
+                <p className="text-2xl font-bold text-yellow-600">{pendingTransactions}</p>
+              </div>
+              <ArrowUpRight className="h-8 w-8 text-yellow-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-        {/* Onglet Statistiques */}
-        <TabsContent value="statistics" className="space-y-6">
-          {/* Cartes de statistiques */}
-          <div className="grid grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">Aujourd'hui</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Transactions</span>
-                    <span className="font-bold text-blue-600">{stats.today.transactions}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Volume</span>
-                    <span className="font-bold text-green-600">{stats.today.volume.toFixed(2)} CHF</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Conversions</span>
-                    <span className="font-bold text-purple-600">{stats.today.conversions}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+      {/* Filtres */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="grid md:grid-cols-5 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Rechercher client ou ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">Cette semaine</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Transactions</span>
-                    <span className="font-bold text-blue-600">{stats.week.transactions}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Volume</span>
-                    <span className="font-bold text-green-600">{stats.week.volume.toFixed(2)} CHF</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Conversions</span>
-                    <span className="font-bold text-purple-600">{stats.week.conversions}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous types</SelectItem>
+                <SelectItem value="payment">Paiements</SelectItem>
+                <SelectItem value="conversion">Conversions</SelectItem>
+                <SelectItem value="refund">Remboursements</SelectItem>
+              </SelectContent>
+            </Select>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">Ce mois</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Transactions</span>
-                    <span className="font-bold text-blue-600">{stats.month.transactions}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Volume</span>
-                    <span className="font-bold text-green-600">{stats.month.volume.toFixed(2)} CHF</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Conversions</span>
-                    <span className="font-bold text-purple-600">{stats.month.conversions}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger>
+                <SelectValue placeholder="Statut" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous statuts</SelectItem>
+                <SelectItem value="completed">Terminé</SelectItem>
+                <SelectItem value="pending">En attente</SelectItem>
+                <SelectItem value="failed">Échoué</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-white dark:bg-gray-800"
+            />
+
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearchTerm("")
+                setFilterType("all")
+                setFilterStatus("all")
+                setSelectedDate("")
+              }}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Reset
+            </Button>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Graphique simulé */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <BarChart3 className="h-5 w-5" />
-                <span>Évolution du volume</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64 flex items-end justify-center space-x-4 bg-gray-50 rounded-lg p-4">
-                {/* Barres simulées */}
-                {[65, 45, 80, 55, 70, 90, 75].map((height, index) => (
-                  <div key={index} className="flex flex-col items-center space-y-2">
-                    <div className="w-8 bg-blue-500 rounded-t" style={{ height: `${height}%` }}></div>
-                    <span className="text-xs text-gray-600">
-                      {new Date(Date.now() - (6 - index) * 24 * 60 * 60 * 1000).toLocaleDateString("fr-FR", {
-                        weekday: "short",
-                      })}
-                    </span>
+      {/* Liste des transactions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Receipt className="h-5 w-5" />
+            Transactions ({filteredTransactions.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {filteredTransactions.length > 0 ? (
+              filteredTransactions.map((transaction) => (
+                <div
+                  key={transaction.id}
+                  className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="flex-shrink-0">{getTypeIcon(transaction.type)}</div>
+
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-gray-900 dark:text-white">{transaction.id}</span>
+                        <Badge className={getStatusColor(transaction.status)}>
+                          {transaction.status === "completed" && "✅ Terminé"}
+                          {transaction.status === "pending" && "⏳ En attente"}
+                          {transaction.status === "failed" && "❌ Échoué"}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {transaction.customer} • {transaction.date} {transaction.time}
+                      </p>
+                    </div>
                   </div>
-                ))}
-              </div>
-              <p className="text-sm text-gray-600 text-center mt-4">Volume des transactions des 7 derniers jours</p>
-            </CardContent>
-          </Card>
 
-          {/* Répartition par crypto */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Répartition par cryptomonnaie</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {[
-                  { crypto: "ETH", percentage: 45, volume: "1,250.00", color: "bg-blue-500" },
-                  { crypto: "BTC", percentage: 30, volume: "890.00", color: "bg-orange-500" },
-                  { crypto: "USDT", percentage: 25, volume: "675.00", color: "bg-green-500" },
-                ].map((item) => (
-                  <div key={item.crypto} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{item.crypto}</span>
-                      <span className="text-sm text-gray-600">
-                        {item.volume} CHF ({item.percentage}%)
+                  <div className="text-right">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-bold text-lg text-gray-900 dark:text-white">
+                        {transaction.cryptoAmount} {transaction.cryptoSymbol}
+                      </span>
+                      <span className="text-gray-500">→</span>
+                      <span className="font-bold text-lg text-green-600">
+                        {transaction.fiatAmount} {transaction.fiatCurrency}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className={`${item.color} h-2 rounded-full`} style={{ width: `${item.percentage}%` }}></div>
-                    </div>
+                    <p className="text-xs text-gray-500">
+                      Taux: {transaction.rate} {transaction.fiatCurrency}
+                    </p>
                   </div>
-                ))}
+
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    {transaction.invoice && (
+                      <Button variant="outline" size="sm">
+                        <Receipt className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <Receipt className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Aucune transaction trouvée</p>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

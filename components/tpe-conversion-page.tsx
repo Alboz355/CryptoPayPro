@@ -7,378 +7,340 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { ArrowLeft, ArrowLeftRight, TrendingUp, Clock, Settings, CheckCircle } from "lucide-react"
+import { ArrowLeft, ArrowUpDown, TrendingUp, TrendingDown, RefreshCw } from "lucide-react"
+import { cryptoPriceService } from "@/lib/crypto-prices"
 import type { AppState } from "@/app/page"
-
-interface ConversionRule {
-  id: string
-  fromCrypto: string
-  toCrypto: string
-  threshold: number
-  autoConvert: boolean
-  schedule: "immediate" | "daily" | "weekly" | "manual"
-}
 
 interface TPEConversionPageProps {
   onNavigate: (page: AppState) => void
-  walletData: any
 }
 
-export function TPEConversionPage({ onNavigate, walletData }: TPEConversionPageProps) {
-  const [selectedCrypto, setSelectedCrypto] = useState("ETH")
-  const [conversionAmount, setConversionAmount] = useState("")
-  const [conversionRules, setConversionRules] = useState<ConversionRule[]>([])
-  const [isConverting, setIsConverting] = useState(false)
+export function TPEConversionPage({ onNavigate }: TPEConversionPageProps) {
+  const [fromCurrency, setFromCurrency] = useState("EUR")
+  const [toCurrency, setToCurrency] = useState("bitcoin")
+  const [amount, setAmount] = useState("")
+  const [convertedAmount, setConvertedAmount] = useState("")
+  const [exchangeRate, setExchangeRate] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
 
-  // Soldes simulés des cryptos reçues via TPE
-  const [tpeBalances] = useState({
-    BTC: "0.00125000",
-    ETH: "0.234500",
-    USDT: "156.75",
-    CHFM: "89.25",
-  })
-
-  const cryptoRates = {
-    BTC: 43250,
-    ETH: 2650,
-    USDT: 1.0,
-    CHFM: 1.0,
-  }
-
-  const cryptos = [
-    { symbol: "BTC", name: "Bitcoin", color: "text-orange-600" },
-    { symbol: "ETH", name: "Ethereum", color: "text-blue-600" },
-    { symbol: "USDT", name: "Tether", color: "text-green-600" },
+  const currencies = [
+    { value: "EUR", label: "Euro", symbol: "€", type: "fiat" },
+    { value: "USD", label: "Dollar US", symbol: "$", type: "fiat" },
+    { value: "CHF", label: "Franc Suisse", symbol: "CHF", type: "fiat" },
+    { value: "bitcoin", label: "Bitcoin", symbol: "BTC", type: "crypto" },
+    { value: "ethereum", label: "Ethereum", symbol: "ETH", type: "crypto" },
+    { value: "algorand", label: "Algorand", symbol: "ALGO", type: "crypto" },
   ]
 
-  useEffect(() => {
-    // Charger les règles de conversion sauvegardées
-    const savedRules = localStorage.getItem("tpe-conversion-rules")
-    if (savedRules) {
-      setConversionRules(JSON.parse(savedRules))
-    } else {
-      // Règles par défaut
-      const defaultRules: ConversionRule[] = [
-        {
-          id: "1",
-          fromCrypto: "ETH",
-          toCrypto: "CHFM",
-          threshold: 100,
-          autoConvert: true,
-          schedule: "daily",
-        },
-        {
-          id: "2",
-          fromCrypto: "BTC",
-          toCrypto: "CHFM",
-          threshold: 200,
-          autoConvert: false,
-          schedule: "manual",
-        },
-      ]
-      setConversionRules(defaultRules)
-    }
-  }, [])
+  const quickAmounts = [10, 25, 50, 100, 250, 500]
 
-  const calculateCHFMAmount = (crypto: string, amount: string) => {
-    if (!amount || !crypto) return "0.00"
-    const cryptoAmount = Number.parseFloat(amount)
-    const rate = cryptoRates[crypto as keyof typeof cryptoRates]
-    return (cryptoAmount * rate).toFixed(2)
+  useEffect(() => {
+    if (amount && Number.parseFloat(amount) > 0) {
+      convertCurrency()
+    } else {
+      setConvertedAmount("")
+    }
+  }, [amount, fromCurrency, toCurrency])
+
+  const convertCurrency = async () => {
+    if (!amount || Number.parseFloat(amount) <= 0) return
+
+    setLoading(true)
+    try {
+      const rate = await getExchangeRate(fromCurrency, toCurrency)
+      setExchangeRate(rate)
+
+      const converted = Number.parseFloat(amount) * rate
+      setConvertedAmount(converted.toFixed(8))
+      setLastUpdate(new Date())
+    } catch (error) {
+      console.error("Erreur de conversion:", error)
+      setConvertedAmount("Erreur")
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleManualConversion = async () => {
-    if (!conversionAmount || Number.parseFloat(conversionAmount) <= 0) return
+  const getExchangeRate = async (from: string, to: string): Promise<number> => {
+    // Taux de change simulés pour les devises fiat
+    const fiatRates: Record<string, number> = {
+      "EUR-USD": 1.08,
+      "USD-EUR": 0.93,
+      "EUR-CHF": 0.95,
+      "CHF-EUR": 1.05,
+      "USD-CHF": 0.88,
+      "CHF-USD": 1.14,
+    }
 
-    setIsConverting(true)
+    // Si les deux sont des devises fiat
+    if (
+      currencies.find((c) => c.value === from)?.type === "fiat" &&
+      currencies.find((c) => c.value === to)?.type === "fiat"
+    ) {
+      const key = `${from}-${to}`
+      return fiatRates[key] || 1
+    }
 
-    // Simuler la conversion
-    setTimeout(() => {
-      const chfmAmount = calculateCHFMAmount(selectedCrypto, conversionAmount)
+    // Si une des devises est crypto, utiliser les prix réels
+    const cryptoPrices = await cryptoPriceService.getCryptoPrices()
 
-      // Sauvegarder la conversion
-      const conversion = {
-        id: Date.now().toString(),
-        fromCrypto: selectedCrypto,
-        fromAmount: conversionAmount,
-        toCrypto: "CHFM",
-        toAmount: chfmAmount,
-        rate: cryptoRates[selectedCrypto as keyof typeof cryptoRates],
-        timestamp: new Date().toISOString(),
-        type: "manual",
+    if (
+      currencies.find((c) => c.value === from)?.type === "fiat" &&
+      currencies.find((c) => c.value === to)?.type === "crypto"
+    ) {
+      // Fiat vers crypto
+      const cryptoPrice = cryptoPrices.find((p) => p.id === to)
+      if (!cryptoPrice) throw new Error("Prix crypto non trouvé")
+
+      let fiatInEur = 1
+      if (from !== "EUR") {
+        fiatInEur = fiatRates[`${from}-EUR`] || 1
       }
 
-      const existingConversions = JSON.parse(localStorage.getItem("tpe-conversions") || "[]")
-      existingConversions.unshift(conversion)
-      localStorage.setItem("tpe-conversions", JSON.stringify(existingConversions))
+      return fiatInEur / cryptoPrice.current_price
+    }
 
-      // Mettre à jour les stats
-      const todayStats = JSON.parse(
-        localStorage.getItem("tpe-today-stats") || '{"transactions": 0, "volume": "0.00", "converted": "0.00"}',
-      )
-      todayStats.converted = (Number.parseFloat(todayStats.converted) + Number.parseFloat(chfmAmount)).toFixed(2)
-      localStorage.setItem("tpe-today-stats", JSON.stringify(todayStats))
+    if (
+      currencies.find((c) => c.value === from)?.type === "crypto" &&
+      currencies.find((c) => c.value === to)?.type === "fiat"
+    ) {
+      // Crypto vers fiat
+      const cryptoPrice = cryptoPrices.find((p) => p.id === from)
+      if (!cryptoPrice) throw new Error("Prix crypto non trouvé")
 
-      setIsConverting(false)
-      setConversionAmount("")
+      let eurToFiat = 1
+      if (to !== "EUR") {
+        eurToFiat = fiatRates[`EUR-${to}`] || 1
+      }
 
-      alert(`Conversion réussie ! ${conversionAmount} ${selectedCrypto} → ${chfmAmount} CHFM`)
-    }, 2000)
+      return cryptoPrice.current_price * eurToFiat
+    }
+
+    // Crypto vers crypto
+    if (
+      currencies.find((c) => c.value === from)?.type === "crypto" &&
+      currencies.find((c) => c.value === to)?.type === "crypto"
+    ) {
+      const fromPrice = cryptoPrices.find((p) => p.id === from)?.current_price || 1
+      const toPrice = cryptoPrices.find((p) => p.id === to)?.current_price || 1
+      return fromPrice / toPrice
+    }
+
+    return 1
   }
 
-  const toggleAutoConversion = (ruleId: string) => {
-    const updatedRules = conversionRules.map((rule) =>
-      rule.id === ruleId ? { ...rule, autoConvert: !rule.autoConvert } : rule,
-    )
-    setConversionRules(updatedRules)
-    localStorage.setItem("tpe-conversion-rules", JSON.stringify(updatedRules))
+  const swapCurrencies = () => {
+    const temp = fromCurrency
+    setFromCurrency(toCurrency)
+    setToCurrency(temp)
+    setAmount(convertedAmount)
+    setConvertedAmount(amount)
   }
 
-  const updateConversionRule = (ruleId: string, field: string, value: any) => {
-    const updatedRules = conversionRules.map((rule) => (rule.id === ruleId ? { ...rule, [field]: value } : rule))
-    setConversionRules(updatedRules)
-    localStorage.setItem("tpe-conversion-rules", JSON.stringify(updatedRules))
+  const setQuickAmount = (quickAmount: number) => {
+    setAmount(quickAmount.toString())
   }
+
+  const refreshRates = () => {
+    if (amount && Number.parseFloat(amount) > 0) {
+      convertCurrency()
+    }
+  }
+
+  const fromCurrencyInfo = currencies.find((c) => c.value === fromCurrency)
+  const toCurrencyInfo = currencies.find((c) => c.value === toCurrency)
 
   return (
-    <div className="min-h-screen p-4 space-y-6">
-      {/* Header */}
-      <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="icon" onClick={() => onNavigate("tpe")}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Conversion CHFM</h1>
-          <p className="text-gray-600">Convertir les cryptos reçues en stablecoin CHF</p>
-        </div>
-      </div>
-
-      {/* Soldes TPE */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <TrendingUp className="h-5 w-5" />
-            <span>Soldes TPE disponibles</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            {cryptos.map((crypto) => {
-              const balance = tpeBalances[crypto.symbol as keyof typeof tpeBalances]
-              const chfValue = calculateCHFMAmount(crypto.symbol, balance)
-
-              return (
-                <div key={crypto.symbol} className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium">{crypto.name}</span>
-                    <Badge variant="outline">{crypto.symbol}</Badge>
-                  </div>
-                  <p className={`text-lg font-bold ${crypto.color}`}>
-                    {balance} {crypto.symbol}
-                  </p>
-                  <p className="text-sm text-gray-600">≈ {chfValue} CHF</p>
-                </div>
-              )
-            })}
-
-            <div className="p-4 border rounded-lg bg-purple-50">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium">CHFM</span>
-                <Badge className="bg-purple-100 text-purple-800">Stable</Badge>
-              </div>
-              <p className="text-lg font-bold text-purple-600">{tpeBalances.CHFM} CHFM</p>
-              <p className="text-sm text-gray-600">= {tpeBalances.CHFM} CHF</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Conversion manuelle */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <ArrowLeftRight className="h-5 w-5" />
-            <span>Conversion manuelle</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Cryptomonnaie</Label>
-              <Select value={selectedCrypto} onValueChange={setSelectedCrypto}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {cryptos.map((crypto) => (
-                    <SelectItem key={crypto.symbol} value={crypto.symbol}>
-                      {crypto.name} ({crypto.symbol})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Montant</Label>
-              <Input
-                type="number"
-                placeholder="0.00"
-                value={conversionAmount}
-                onChange={(e) => setConversionAmount(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {conversionAmount && Number.parseFloat(conversionAmount) > 0 && (
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Vous recevrez:</span>
-                <span className="font-bold text-purple-600">
-                  {calculateCHFMAmount(selectedCrypto, conversionAmount)} CHFM
-                </span>
-              </div>
-              <p className="text-sm text-gray-500 mt-1">
-                Taux: 1 {selectedCrypto} = {cryptoRates[selectedCrypto as keyof typeof cryptoRates].toLocaleString()}{" "}
-                CHF
-              </p>
-            </div>
-          )}
-
-          <Button
-            onClick={handleManualConversion}
-            disabled={!conversionAmount || Number.parseFloat(conversionAmount) <= 0 || isConverting}
-            className="w-full"
-          >
-            {isConverting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Conversion en cours...
-              </>
-            ) : (
-              <>
-                <ArrowLeftRight className="h-4 w-4 mr-2" />
-                Convertir en CHFM
-              </>
-            )}
+    <div className="min-h-screen bg-background p-4">
+      <div className="max-w-md mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="icon" onClick={() => onNavigate("tpe")}>
+            <ArrowLeft className="h-5 w-5" />
           </Button>
-        </CardContent>
-      </Card>
+          <h1 className="text-xl font-semibold">Convertisseur</h1>
+          <Button variant="ghost" size="icon" onClick={refreshRates}>
+            <RefreshCw className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
 
-      {/* Règles de conversion automatique */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Settings className="h-5 w-5" />
-            <span>Conversion automatique</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {conversionRules.map((rule) => (
-            <div key={rule.id} className="p-4 border rounded-lg space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium">
-                    {rule.fromCrypto} → {rule.toCrypto}
-                  </h3>
-                  <p className="text-sm text-gray-600">Seuil: {rule.threshold} CHF</p>
-                </div>
-                <Switch checked={rule.autoConvert} onCheckedChange={() => toggleAutoConversion(rule.id)} />
+        {/* Conversion Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Conversion de devises</CardTitle>
+            {lastUpdate && (
+              <p className="text-sm text-muted-foreground">Dernière mise à jour: {lastUpdate.toLocaleTimeString()}</p>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* From Currency */}
+            <div className="space-y-2">
+              <Label>De</Label>
+              <div className="flex gap-2">
+                <Select value={fromCurrency} onValueChange={setFromCurrency}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currencies.map((currency) => (
+                      <SelectItem key={currency.value} value={currency.value}>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={currency.type === "crypto" ? "default" : "secondary"}>
+                            {currency.symbol}
+                          </Badge>
+                          {currency.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  step="any"
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="flex-1"
+                />
               </div>
+            </div>
 
-              {rule.autoConvert && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Seuil (CHF)</Label>
-                    <Input
-                      type="number"
-                      value={rule.threshold}
-                      onChange={(e) => updateConversionRule(rule.id, "threshold", Number.parseFloat(e.target.value))}
-                    />
+            {/* Swap Button */}
+            <div className="flex justify-center">
+              <Button variant="outline" size="icon" onClick={swapCurrencies}>
+                <ArrowUpDown className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* To Currency */}
+            <div className="space-y-2">
+              <Label>Vers</Label>
+              <div className="flex gap-2">
+                <Select value={toCurrency} onValueChange={setToCurrency}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {currencies.map((currency) => (
+                      <SelectItem key={currency.value} value={currency.value}>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={currency.type === "crypto" ? "default" : "secondary"}>
+                            {currency.symbol}
+                          </Badge>
+                          {currency.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex-1 p-3 bg-muted rounded-md">
+                  <div className="text-lg font-mono">
+                    {loading ? (
+                      <div className="flex items-center">
+                        <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                        Calcul...
+                      </div>
+                    ) : (
+                      convertedAmount || "0.00"
+                    )}
                   </div>
-
-                  <div className="space-y-2">
-                    <Label>Fréquence</Label>
-                    <Select
-                      value={rule.schedule}
-                      onValueChange={(value) => updateConversionRule(rule.id, "schedule", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="immediate">Immédiat</SelectItem>
-                        <SelectItem value="daily">Quotidien</SelectItem>
-                        <SelectItem value="weekly">Hebdomadaire</SelectItem>
-                        <SelectItem value="manual">Manuel</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Avantages CHFM */}
-      <Card className="bg-green-50 border-green-200">
-        <CardContent className="pt-6">
-          <div className="flex items-start space-x-3">
-            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-medium text-green-900">Avantages du CHFM</h3>
-              <div className="text-sm text-green-700 mt-2 space-y-1">
-                <p>• Stabilité garantie 1:1 avec le Franc Suisse</p>
-                <p>• Protection contre la volatilité crypto</p>
-                <p>• Conversion instantanée et frais réduits</p>
-                <p>• Idéal pour les commerçants</p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Historique des conversions récentes */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center space-x-2">
-              <Clock className="h-5 w-5" />
-              <span>Conversions récentes</span>
-            </CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => onNavigate("tpe-history")}>
-              Voir tout
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between py-2 border-b">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <ArrowLeftRight className="h-4 w-4 text-blue-600" />
-                </div>
-                <div>
-                  <p className="font-medium">ETH → CHFM</p>
-                  <p className="text-sm text-gray-600">il y a 2h</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="font-medium">0.05 ETH</p>
-                <p className="text-sm text-green-600">+132.50 CHFM</p>
-              </div>
             </div>
 
-            <div className="text-center py-4 text-gray-500">
-              <p className="text-sm">Aucune conversion aujourd'hui</p>
+            {/* Exchange Rate */}
+            {exchangeRate > 0 && (
+              <div className="p-3 bg-muted rounded-lg">
+                <div className="text-sm text-muted-foreground">Taux de change</div>
+                <div className="font-mono">
+                  1 {fromCurrencyInfo?.symbol} = {exchangeRate.toFixed(8)} {toCurrencyInfo?.symbol}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Quick Amount Buttons */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Montants rapides</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-2">
+              {quickAmounts.map((quickAmount) => (
+                <Button key={quickAmount} variant="outline" size="sm" onClick={() => setQuickAmount(quickAmount)}>
+                  {quickAmount} {fromCurrencyInfo?.symbol}
+                </Button>
+              ))}
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* Market Info */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Informations du marché</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Bitcoin (BTC)</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono">65,000 €</span>
+                  <Badge variant="secondary" className="text-green-600">
+                    <TrendingUp className="w-3 h-3 mr-1" />
+                    +2.5%
+                  </Badge>
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Ethereum (ETH)</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono">3,200 €</span>
+                  <Badge variant="secondary" className="text-red-600">
+                    <TrendingDown className="w-3 h-3 mr-1" />
+                    -1.2%
+                  </Badge>
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Algorand (ALGO)</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono">0.25 €</span>
+                  <Badge variant="secondary" className="text-green-600">
+                    <TrendingUp className="w-3 h-3 mr-1" />
+                    +5.8%
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Conversion History */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Historique des conversions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span>100 EUR → 0.00153846 BTC</span>
+                <span className="text-muted-foreground">Il y a 5 min</span>
+              </div>
+              <div className="flex justify-between">
+                <span>50 USD → 0.015625 ETH</span>
+                <span className="text-muted-foreground">Il y a 12 min</span>
+              </div>
+              <div className="flex justify-between">
+                <span>200 CHF → 800 ALGO</span>
+                <span className="text-muted-foreground">Il y a 1h</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
