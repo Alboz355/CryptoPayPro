@@ -18,8 +18,11 @@ import { SeedPhraseModal } from "@/components/seed-phrase-modal"
 import { MtPelerinWidget } from "@/components/mt-pelerin-widget"
 import { SupportContactModal } from "@/components/support-contact-modal"
 import { PriceAlertModal } from "@/components/price-alert-modal"
+import LanguageSelectionPage from "@/components/language-selection-page"
+import { useLanguage } from "@/contexts/language-context"
 
 export type AppState =
+  | "language-selection"
   | "onboarding"
   | "pin-setup"
   | "app-presentation"
@@ -54,7 +57,8 @@ interface WalletData {
 }
 
 export default function CryptoWalletApp() {
-  const [currentPage, setCurrentPage] = useState<AppState>("onboarding")
+  const { isLanguageSelected, setLanguage } = useLanguage()
+  const [currentPage, setCurrentPage] = useState<AppState>("language-selection")
   const [walletData, setWalletData] = useState<WalletData | null>(null)
   const [userType, setUserType] = useState<UserType | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -68,6 +72,13 @@ export default function CryptoWalletApp() {
   const [tpeAccessGranted, setTpeAccessGranted] = useState(false)
 
   useEffect(() => {
+    // Si la langue n'est pas sélectionnée, rester sur la page de sélection de langue
+    if (!isLanguageSelected) {
+      setCurrentPage("language-selection")
+      setIsLoading(false)
+      return
+    }
+
     // Vérifier si un portefeuille existe déjà
     const existingWallet = localStorage.getItem("wallet-data")
     const hasCompletedOnboarding = localStorage.getItem("onboarding-completed")
@@ -97,7 +108,11 @@ export default function CryptoWalletApp() {
     }
 
     setIsLoading(false)
-  }, [])
+  }, [isLanguageSelected])
+
+  const handleLanguageSelected = () => {
+    setCurrentPage("onboarding")
+  }
 
   const handleWalletCreated = (wallet: WalletData, selectedUserType: UserType) => {
     try {
@@ -198,6 +213,8 @@ export default function CryptoWalletApp() {
 
   const renderCurrentPage = () => {
     switch (currentPage) {
+      case "language-selection":
+        return <LanguageSelectionPage onLanguageSelected={handleLanguageSelected} />
       case "onboarding":
         return <OnboardingPage onWalletCreated={handleWalletCreated} />
       case "pin-setup":
