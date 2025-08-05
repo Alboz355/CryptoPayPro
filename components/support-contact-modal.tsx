@@ -3,345 +3,314 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Mail,
-  Phone,
-  MessageCircle,
-  Send,
-  CheckCircle,
-  AlertCircle,
-  Clock,
-  Globe,
-  HelpCircle,
-  Bug,
-  CreditCard,
-  Shield,
-} from "lucide-react"
+import { HelpCircle, Send, CheckCircle, AlertCircle, Mail, MessageSquare, Bug, Lightbulb } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 import emailjs from "@emailjs/browser"
-import { toast } from "sonner"
 
 interface SupportContactModalProps {
-  isOpen: boolean
-  onClose: () => void
+  children: React.ReactNode
 }
 
-export function SupportContactModal({ isOpen, onClose }: SupportContactModalProps) {
+export function SupportContactModal({ children }: SupportContactModalProps) {
+  const [open, setOpen] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     subject: "",
-    category: "general",
+    category: "",
     message: "",
-    priority: "normal",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle")
+  const { toast } = useToast()
 
   const categories = [
-    { id: "general", label: "Question générale", icon: HelpCircle, color: "text-blue-600" },
-    { id: "technical", label: "Problème technique", icon: Bug, color: "text-red-600" },
-    { id: "payment", label: "Paiement", icon: CreditCard, color: "text-green-600" },
-    { id: "security", label: "Sécurité", icon: Shield, color: "text-purple-600" },
-  ]
-
-  const priorities = [
-    { id: "low", label: "Faible", color: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200" },
-    { id: "normal", label: "Normal", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200" },
-    { id: "high", label: "Élevée", color: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200" },
-    { id: "urgent", label: "Urgent", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200" },
+    { value: "bug", label: "Signaler un bug", icon: Bug, color: "bg-red-500" },
+    { value: "feature", label: "Demande de fonctionnalité", icon: Lightbulb, color: "bg-yellow-500" },
+    { value: "support", label: "Support technique", icon: HelpCircle, color: "bg-blue-500" },
+    { value: "general", label: "Question générale", icon: MessageSquare, color: "bg-green-500" },
   ]
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+    if (submitStatus !== "idle") {
+      setSubmitStatus("idle")
+    }
+  }
+
+  const validateForm = () => {
+    const { name, email, subject, category, message } = formData
+
+    if (!name.trim()) {
+      toast({
+        title: "Erreur de validation",
+        description: "Veuillez saisir votre nom",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({
+        title: "Erreur de validation",
+        description: "Veuillez saisir une adresse email valide",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    if (!subject.trim()) {
+      toast({
+        title: "Erreur de validation",
+        description: "Veuillez saisir un sujet",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    if (!category) {
+      toast({
+        title: "Erreur de validation",
+        description: "Veuillez sélectionner une catégorie",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    if (!message.trim() || message.trim().length < 10) {
+      toast({
+        title: "Erreur de validation",
+        description: "Veuillez saisir un message d'au moins 10 caractères",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    return true
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.name || !formData.email || !formData.subject || !formData.message) {
-      toast.error("Veuillez remplir tous les champs obligatoires")
-      return
-    }
+    if (!validateForm()) return
 
     setIsSubmitting(true)
     setSubmitStatus("idle")
 
     try {
-      // Configuration EmailJS avec vos vraies clés
+      const selectedCategory = categories.find((cat) => cat.value === formData.category)
+
       const templateParams = {
         from_name: formData.name,
         from_email: formData.email,
         subject: formData.subject,
-        category: categories.find((c) => c.id === formData.category)?.label || formData.category,
-        priority: priorities.find((p) => p.id === formData.priority)?.label || formData.priority,
+        category: selectedCategory?.label || formData.category,
         message: formData.message,
         to_email: "leartshabija@gmail.com",
+        timestamp: new Date().toLocaleString("fr-CH"),
       }
 
       await emailjs.send(
-        "service_0cen23r", // Votre Service ID
-        "template_bg97ynr", // Votre Template ID
+        "service_0cen23r", // Service ID
+        "template_bg97ynr", // Template ID
         templateParams,
-        "yfMJVUvA62CKF7Div", // Votre Public Key
+        "yfMJVUvA62CKF7Div", // Public Key
       )
 
       setSubmitStatus("success")
-      toast.success("Message envoyé avec succès !")
-
-      // Reset form
-      setFormData({
-        name: "",
-        email: "",
-        subject: "",
-        category: "general",
-        message: "",
-        priority: "normal",
+      toast({
+        title: "Message envoyé !",
+        description: "Votre message a été envoyé avec succès. Nous vous répondrons dans les plus brefs délais.",
       })
 
-      // Close modal after 2 seconds
+      // Reset form after successful submission
       setTimeout(() => {
-        onClose()
+        setFormData({
+          name: "",
+          email: "",
+          subject: "",
+          category: "",
+          message: "",
+        })
         setSubmitStatus("idle")
+        setOpen(false)
       }, 2000)
     } catch (error) {
-      console.error("Erreur EmailJS:", error)
+      console.error("Erreur lors de l'envoi:", error)
       setSubmitStatus("error")
-      toast.error("Erreur lors de l'envoi du message. Veuillez réessayer.")
+      toast({
+        title: "Erreur d'envoi",
+        description: "Une erreur est survenue lors de l'envoi de votre message. Veuillez réessayer.",
+        variant: "destructive",
+      })
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const selectedCategory = categories.find((c) => c.id === formData.category)
-  const selectedPriority = priorities.find((p) => p.id === formData.priority)
+  const selectedCategory = categories.find((cat) => cat.value === formData.category)
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-2xl">
-            <MessageCircle className="h-6 w-6 text-emerald-600" />
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <Mail className="h-6 w-6 text-primary" />
             Contacter le support
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="contact" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="contact" className="flex items-center gap-2">
-              <Mail className="h-4 w-4" />
-              Envoyer un message
-            </TabsTrigger>
-            <TabsTrigger value="info" className="flex items-center gap-2">
-              <Phone className="h-4 w-4" />
-              Informations de contact
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="contact" className="space-y-6 mt-6">
-            {submitStatus === "success" ? (
-              <Alert className="border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 dark:border-emerald-700">
-                <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                <AlertDescription className="text-emerald-800 dark:text-emerald-200">
-                  <div className="text-center">
-                    <h3 className="font-semibold mb-2">Message envoyé avec succès !</h3>
-                    <p>Nous avons bien reçu votre message et vous répondrons dans les plus brefs délais.</p>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Nom complet *</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => handleInputChange("name", e.target.value)}
-                      placeholder="Votre nom complet"
-                      required
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => handleInputChange("email", e.target.value)}
-                      placeholder="votre@email.com"
-                      required
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="subject">Sujet *</Label>
-                  <Input
-                    id="subject"
-                    value={formData.subject}
-                    onChange={(e) => handleInputChange("subject", e.target.value)}
-                    placeholder="Résumé de votre demande"
-                    required
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Catégorie</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {categories.map((category) => {
-                        const Icon = category.icon
-                        return (
-                          <Button
-                            key={category.id}
-                            type="button"
-                            variant={formData.category === category.id ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => handleInputChange("category", category.id)}
-                            disabled={isSubmitting}
-                            className="justify-start"
-                          >
-                            <Icon className={`h-4 w-4 mr-2 ${category.color}`} />
-                            {category.label}
-                          </Button>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Priorité</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {priorities.map((priority) => (
-                        <Badge
-                          key={priority.id}
-                          variant={formData.priority === priority.id ? "default" : "outline"}
-                          className={`cursor-pointer ${formData.priority === priority.id ? priority.color : ""}`}
-                          onClick={() => !isSubmitting && handleInputChange("priority", priority.id)}
-                        >
-                          {priority.label}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="message">Message *</Label>
-                  <Textarea
-                    id="message"
-                    value={formData.message}
-                    onChange={(e) => handleInputChange("message", e.target.value)}
-                    placeholder="Décrivez votre problème ou votre question en détail..."
-                    className="min-h-[120px] resize-none"
-                    required
-                    disabled={isSubmitting}
-                  />
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{formData.message.length}/1000 caractères</p>
-                </div>
-
-                {submitStatus === "error" && (
-                  <Alert className="border-red-200 bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 dark:border-red-700">
-                    <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-                    <AlertDescription className="text-red-800 dark:text-red-200">
-                      Une erreur s'est produite lors de l'envoi. Veuillez réessayer ou nous contacter directement.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="flex gap-3">
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                        Envoi en cours...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="h-4 w-4 mr-2" />
-                        Envoyer le message
-                      </>
-                    )}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-                    Annuler
-                  </Button>
-                </div>
-              </form>
-            )}
-          </TabsContent>
-
-          <TabsContent value="info" className="space-y-6 mt-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Mail className="h-5 w-5 text-emerald-600" />
-                  Contact direct
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <Mail className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                    <div>
-                      <p className="font-medium">Email</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">leartshabija@gmail.com</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <Globe className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                    <div>
-                      <p className="font-medium">Site web</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">cryptopaypro.com</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-teal-600" />
-                  Horaires de support
-                </h3>
-                <div className="space-y-3">
-                  <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-700">
-                    <p className="font-medium text-emerald-800 dark:text-emerald-200">Lundi - Vendredi</p>
-                    <p className="text-sm text-emerald-700 dark:text-emerald-300">9h00 - 18h00 (CET)</p>
-                  </div>
-                  <div className="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg border border-teal-200 dark:border-teal-700">
-                    <p className="font-medium text-teal-800 dark:text-teal-200">Weekend</p>
-                    <p className="text-sm text-teal-700 dark:text-teal-300">Support limité</p>
-                  </div>
-                </div>
-              </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Contact Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nom complet *</Label>
+              <Input
+                id="name"
+                placeholder="Votre nom"
+                value={formData.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                disabled={isSubmitting}
+              />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="votre@email.com"
+                value={formData.email}
+                onChange={(e) => handleInputChange("email", e.target.value)}
+                disabled={isSubmitting}
+              />
+            </div>
+          </div>
 
-            <Alert className="border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 dark:border-blue-700">
-              <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <AlertDescription className="text-blue-800 dark:text-blue-200">
-                <strong>Temps de réponse moyen :</strong>
-                <ul className="mt-2 space-y-1 text-sm">
-                  <li>• Questions générales : 24-48h</li>
-                  <li>• Problèmes techniques : 12-24h</li>
-                  <li>• Urgences sécurité : 2-6h</li>
-                </ul>
+          {/* Subject */}
+          <div className="space-y-2">
+            <Label htmlFor="subject">Sujet *</Label>
+            <Input
+              id="subject"
+              placeholder="Résumé de votre demande"
+              value={formData.subject}
+              onChange={(e) => handleInputChange("subject", e.target.value)}
+              disabled={isSubmitting}
+            />
+          </div>
+
+          {/* Category */}
+          <div className="space-y-2">
+            <Label htmlFor="category">Catégorie *</Label>
+            <Select
+              value={formData.category}
+              onValueChange={(value) => handleInputChange("category", value)}
+              disabled={isSubmitting}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionnez une catégorie" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((category) => (
+                  <SelectItem key={category.value} value={category.value}>
+                    <div className="flex items-center gap-2">
+                      <category.icon className="h-4 w-4" />
+                      {category.label}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedCategory && (
+              <Badge variant="outline" className="w-fit">
+                <selectedCategory.icon className="h-3 w-3 mr-1" />
+                {selectedCategory.label}
+              </Badge>
+            )}
+          </div>
+
+          {/* Message */}
+          <div className="space-y-2">
+            <Label htmlFor="message">Message *</Label>
+            <Textarea
+              id="message"
+              placeholder="Décrivez votre problème ou votre question en détail..."
+              value={formData.message}
+              onChange={(e) => handleInputChange("message", e.target.value)}
+              disabled={isSubmitting}
+              rows={6}
+              className="resize-none"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Minimum 10 caractères</span>
+              <span>{formData.message.length} caractères</span>
+            </div>
+          </div>
+
+          {/* Status Messages */}
+          {submitStatus === "success" && (
+            <Alert className="border-green-200 bg-green-50 dark:bg-green-900/20">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800 dark:text-green-200">
+                Votre message a été envoyé avec succès ! Nous vous répondrons dans les plus brefs délais.
               </AlertDescription>
             </Alert>
-          </TabsContent>
-        </Tabs>
+          )}
+
+          {submitStatus === "error" && (
+            <Alert className="border-red-200 bg-red-50 dark:bg-red-900/20" variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Une erreur est survenue lors de l'envoi. Veuillez réessayer ou nous contacter directement à
+                leartshabija@gmail.com
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Submit Button */}
+          <div className="flex gap-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={isSubmitting}
+              className="flex-1"
+            >
+              Annuler
+            </Button>
+            <Button type="submit" disabled={isSubmitting || submitStatus === "success"} className="flex-1">
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Envoi en cours...
+                </>
+              ) : submitStatus === "success" ? (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Envoyé !
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Envoyer le message
+                </>
+              )}
+            </Button>
+          </div>
+
+          {/* Footer Info */}
+          <div className="text-xs text-muted-foreground text-center pt-4 border-t">
+            <p>💡 Temps de réponse habituel : 24-48h • Email direct : leartshabija@gmail.com</p>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   )

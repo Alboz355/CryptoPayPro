@@ -61,8 +61,8 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
     setCurrentStep("wallet-setup")
   }
 
-  // Supprimer "async" - la fonction est maintenant synchrone
-  const handleCreateWallet = () => {
+  // Fonction async pour gérer l'initialisation asynchrone de Trust Wallet
+  const handleCreateWallet = async () => {
     if (!selectedUserType) return
 
     setIsCreating(true)
@@ -70,13 +70,13 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
     setSuccess(null)
 
     try {
-      // Supprimer "await" - generateWallet() est maintenant synchrone
-      const wallet = generateWallet()
+      // Utiliser await car generateWallet est maintenant asynchrone
+      const wallet = await generateWallet()
 
       const walletData: WalletData = {
         mnemonic: wallet.mnemonic,
         addresses: wallet.addresses,
-        // Mettre les soldes à zéro, SANS SIMULATION
+        // Initialiser les soldes à zéro, SANS SIMULATION
         balances: {
           bitcoin: "0",
           ethereum: "0",
@@ -118,7 +118,7 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
     }
   }
 
-  const handleImportWallet = () => {
+  const handleImportWallet = async () => {
     if (!selectedUserType || !importSeedPhrase.trim()) {
       setError("Veuillez saisir une phrase de récupération valide")
       return
@@ -135,8 +135,8 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
         throw new Error("La phrase de récupération doit contenir 12 ou 24 mots")
       }
 
-      // Supprimer "await" - generateWallet() est maintenant synchrone
-      const wallet = generateWallet()
+      // Utiliser await car generateWallet est maintenant asynchrone
+      const wallet = await generateWallet()
 
       const walletData: WalletData = {
         mnemonic: importSeedPhrase,

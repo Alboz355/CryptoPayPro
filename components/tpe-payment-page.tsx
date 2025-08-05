@@ -79,6 +79,7 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
 
   const fetchCryptoPrices = async () => {
     try {
+      setLoading(true)
       const prices = await cryptoService.getCryptoPrices()
       const priceMap = prices.reduce((acc: any, crypto: any) => {
         acc[crypto.id] = crypto.current_price
@@ -87,24 +88,30 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
       setCryptoPrices(priceMap)
     } catch (error) {
       console.error("Error fetching crypto prices:", error)
-      // Fallback prices
-      setCryptoPrices({
-        bitcoin: 45000,
-        ethereum: 2800,
-        algorand: 0.25,
+      toast({
+        title: "Erreur",
+        description: "Impossible de récupérer les prix des cryptomonnaies",
+        variant: "destructive",
       })
+    } finally {
+      setLoading(false)
     }
   }
 
-  const calculateCryptoAmount = () => {
+  const calculateCryptoAmount = async () => {
     const chfAmount = Number.parseFloat(amount)
     const cryptoPrice = cryptoPrices[selectedCrypto]
 
     if (chfAmount && cryptoPrice) {
-      // Convert CHF to USD (approximate rate)
-      const usdAmount = chfAmount * 1.1 // 1 CHF ≈ 1.1 USD
-      const cryptoValue = usdAmount / cryptoPrice
-      setCryptoAmount(cryptoValue.toFixed(8))
+      try {
+        // Convert CHF to USD (approximate rate - in production, use a real forex API)
+        const usdAmount = chfAmount * 1.1 // 1 CHF ≈ 1.1 USD
+        const cryptoValue = usdAmount / cryptoPrice
+        setCryptoAmount(cryptoValue.toFixed(8))
+      } catch (error) {
+        console.error("Error calculating crypto amount:", error)
+        setCryptoAmount("0")
+      }
     }
   }
 

@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@emailjs/browser": "latest",
-    "@hookform/resolvers": "^3.9.0",
+    "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "latest",
     "@radix-ui/react-alert-dialog": "latest",
     "@radix-ui/react-aspect-ratio": "latest",
@@ -58,7 +58,7 @@
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "latest",
-    "zod": "^3.23.8"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22",

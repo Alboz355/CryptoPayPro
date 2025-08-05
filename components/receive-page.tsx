@@ -3,394 +3,388 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Copy,
-  QrCode,
-  CheckCircle,
-  AlertCircle,
-  Bitcoin,
-  Coins,
-  Wallet,
-  ArrowLeft,
-  RefreshCw,
-  Share2,
-} from "lucide-react"
-import { generateCryptoAddress, formatAddress, addTransaction } from "@/lib/wallet-utils"
-import { useLanguage } from "@/contexts/language-context"
-import { toast } from "sonner"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ArrowLeft, QrCode, Copy, Download, Share2, AlertCircle } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { generateCryptoAddress, formatAddress } from "@/lib/wallet-utils"
+import type { AppState } from "@/app/page"
 
 interface ReceivePageProps {
-  onBack: () => void
+  onNavigate: (page: AppState) => void
+  walletData: any
 }
 
-export function ReceivePage({ onBack }: ReceivePageProps) {
-  const { t } = useLanguage()
-  const [selectedCrypto, setSelectedCrypto] = useState<"bitcoin" | "ethereum" | "algorand">("bitcoin")
-  const [addresses, setAddresses] = useState<Record<string, string>>({})
-  const [customAmount, setCustomAmount] = useState("")
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [copiedAddress, setCopiedAddress] = useState<string | null>(null)
+interface CryptoOption {
+  id: string
+  name: string
+  symbol: string
+  color: string
+  icon: string
+}
 
-  const cryptoOptions = [
-    {
-      id: "bitcoin" as const,
+export function ReceivePage({ onNavigate, walletData }: ReceivePageProps) {
+  const [selectedCrypto, setSelectedCrypto] = useState("bitcoin")
+  const [amount, setAmount] = useState("")
+  const [label, setLabel] = useState("")
+  const [message, setMessage] = useState("")
+  const [qrCodeUrl, setQrCodeUrl] = useState("")
+  const [address, setAddress] = useState("")
+  const [loading, setLoading] = useState(false)
+  const { toast } = useToast()
+
+  const cryptoOptions: Record<string, CryptoOption> = {
+    bitcoin: {
+      id: "bitcoin",
       name: "Bitcoin",
       symbol: "BTC",
-      icon: Bitcoin,
-      color: "text-orange-500",
-      bgColor: "bg-orange-50 dark:bg-orange-900/20",
-      borderColor: "border-orange-200 dark:border-orange-700",
+      color: "bg-orange-500",
+      icon: "₿",
     },
-    {
-      id: "ethereum" as const,
+    ethereum: {
+      id: "ethereum",
       name: "Ethereum",
       symbol: "ETH",
-      icon: Coins,
-      color: "text-blue-500",
-      bgColor: "bg-blue-50 dark:bg-blue-900/20",
-      borderColor: "border-blue-200 dark:border-blue-700",
+      color: "bg-blue-500",
+      icon: "Ξ",
     },
-    {
-      id: "algorand" as const,
+    algorand: {
+      id: "algorand",
       name: "Algorand",
       symbol: "ALGO",
-      icon: Wallet,
-      color: "text-purple-500",
-      bgColor: "bg-purple-50 dark:bg-purple-900/20",
-      borderColor: "border-purple-200 dark:border-purple-700",
+      color: "bg-black",
+      icon: "A",
     },
-  ]
+  }
 
-  const selectedCryptoInfo = cryptoOptions.find((crypto) => crypto.id === selectedCrypto)!
-
-  // Générer les adresses au chargement
   useEffect(() => {
-    const generateAddresses = () => {
-      setIsGenerating(true)
-      try {
-        const newAddresses: Record<string, string> = {}
-        cryptoOptions.forEach((crypto) => {
-          newAddresses[crypto.id] = generateCryptoAddress(crypto.id)
-        })
-        setAddresses(newAddresses)
-      } catch (error) {
-        console.error("Erreur lors de la génération des adresses:", error)
-        toast.error("Erreur lors de la génération des adresses")
-      } finally {
-        setIsGenerating(false)
-      }
+    loadAddress()
+  }, [selectedCrypto])
+
+  useEffect(() => {
+    if (address) {
+      generateQRCode()
     }
+  }, [address, amount, label, message])
 
-    generateAddresses()
-  }, [])
-
-  const handleCopyAddress = async (address: string) => {
+  const loadAddress = async () => {
+    setLoading(true)
     try {
-      await navigator.clipboard.writeText(address)
-      setCopiedAddress(address)
-      toast.success("Adresse copiée dans le presse-papiers")
-      setTimeout(() => setCopiedAddress(null), 2000)
+      let cryptoAddress = ""
+
+      // Try to get address from wallet data first
+      if (walletData?.addresses?.[selectedCrypto]) {
+        cryptoAddress = walletData.addresses[selectedCrypto]
+      } else {
+        // Generate new address if not available
+        cryptoAddress = await generateCryptoAddress(selectedCrypto as "bitcoin" | "ethereum" | "algorand")
+      }
+
+      setAddress(cryptoAddress)
     } catch (error) {
-      toast.error("Erreur lors de la copie")
+      console.error("Error loading address:", error)
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger l'adresse",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleShareAddress = async () => {
-    const address = addresses[selectedCrypto]
+  const generateQRCode = () => {
     if (!address) return
 
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: `Adresse ${selectedCryptoInfo.name}`,
-          text: `Mon adresse ${selectedCryptoInfo.name} pour recevoir des ${selectedCryptoInfo.symbol}`,
-          url: address,
-        })
-      } else {
-        await handleCopyAddress(address)
-      }
-    } catch (error) {
-      console.error("Erreur lors du partage:", error)
-    }
-  }
-
-  const generateQRCodeUrl = (address: string, amount?: string) => {
     let qrData = address
+    const crypto = cryptoOptions[selectedCrypto]
+
+    // Create URI with parameters if amount is specified
     if (amount && Number.parseFloat(amount) > 0) {
+      const amountValue = Number.parseFloat(amount)
+
       switch (selectedCrypto) {
         case "bitcoin":
-          qrData = `bitcoin:${address}?amount=${amount}`
+          qrData = `bitcoin:${address}?amount=${amountValue}`
+          if (label) qrData += `&label=${encodeURIComponent(label)}`
+          if (message) qrData += `&message=${encodeURIComponent(message)}`
           break
         case "ethereum":
-          qrData = `ethereum:${address}?value=${amount}`
+          qrData = `ethereum:${address}?value=${Math.floor(amountValue * Math.pow(10, 18))}`
           break
         case "algorand":
-          qrData = `algorand:${address}?amount=${amount}`
+          qrData = `algorand:${address}?amount=${Math.floor(amountValue * Math.pow(10, 6))}`
           break
       }
     }
-    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`
+
+    // Generate QR code
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}&bgcolor=FFFFFF&color=000000&margin=10`
+    setQrCodeUrl(qrUrl)
   }
 
-  const handleRefreshAddress = () => {
-    setIsGenerating(true)
+  const copyToClipboard = async (text: string, label: string) => {
     try {
-      const newAddress = generateCryptoAddress(selectedCrypto)
-      setAddresses((prev) => ({
-        ...prev,
-        [selectedCrypto]: newAddress,
-      }))
-      toast.success("Nouvelle adresse générée")
+      await navigator.clipboard.writeText(text)
+      toast({
+        title: "Copié !",
+        description: `${label} copié dans le presse-papiers`,
+      })
     } catch (error) {
-      console.error("Erreur lors de la génération de l'adresse:", error)
-      toast.error("Erreur lors de la génération de l'adresse")
-    } finally {
-      setIsGenerating(false)
+      toast({
+        title: "Erreur",
+        description: "Impossible de copier dans le presse-papiers",
+        variant: "destructive",
+      })
     }
   }
 
-  const simulateReceiveTransaction = () => {
-    const amount = customAmount || "0.001"
-    addTransaction({
-      type: "received",
-      crypto: selectedCrypto,
-      amount,
-      address: addresses[selectedCrypto] || "Adresse de test",
-      status: "confirmed",
-      hash: `sim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    })
-    toast.success(`Transaction simulée: +${amount} ${selectedCryptoInfo.symbol}`)
+  const shareAddress = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Adresse ${cryptoOptions[selectedCrypto].name}`,
+          text: `Envoyez-moi du ${cryptoOptions[selectedCrypto].name} à cette adresse:`,
+          url: address,
+        })
+      } catch (error) {
+        // Fallback to clipboard
+        copyToClipboard(address, "Adresse")
+      }
+    } else {
+      copyToClipboard(address, "Adresse")
+    }
   }
 
-  const currentAddress = addresses[selectedCrypto]
+  const downloadQRCode = () => {
+    if (!qrCodeUrl) return
+
+    const link = document.createElement("a")
+    link.href = qrCodeUrl
+    link.download = `${cryptoOptions[selectedCrypto].symbol}-address-qr.png`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    toast({
+      title: "QR Code téléchargé",
+      description: "Le QR code a été sauvegardé dans vos téléchargements",
+    })
+  }
+
+  const currentCrypto = cryptoOptions[selectedCrypto]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onBack}
-            className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm"
-          >
-            <ArrowLeft className="h-4 w-4" />
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" onClick={() => onNavigate("dashboard")}>
+            <ArrowLeft className="h-5 w-5 mr-2" />
+            Retour au tableau de bord
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-              {t.receive.title}
-            </h1>
-            <p className="text-gray-600 dark:text-gray-300">Générez une adresse pour recevoir des cryptomonnaies</p>
-          </div>
+          <h1 className="text-2xl font-bold text-foreground">💰 Recevoir des cryptomonnaies</h1>
+          <div className="w-32" />
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Sélection de crypto */}
-          <Card className="shadow-xl border-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-emerald-600" />
-                Choisir la cryptomonnaie
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Tabs value={selectedCrypto} onValueChange={(value) => setSelectedCrypto(value as any)}>
-                <TabsList className="grid w-full grid-cols-3 mb-6">
-                  {cryptoOptions.map((crypto) => {
-                    const Icon = crypto.icon
-                    return (
-                      <TabsTrigger
-                        key={crypto.id}
-                        value={crypto.id}
-                        className="flex items-center gap-2 data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
-                      >
-                        <Icon className="h-4 w-4" />
-                        {crypto.symbol}
-                      </TabsTrigger>
-                    )
-                  })}
-                </TabsList>
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Left Column - Configuration */}
+          <div className="space-y-6">
+            {/* Crypto Selection */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Choisir la cryptomonnaie</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Tabs value={selectedCrypto} onValueChange={setSelectedCrypto}>
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="bitcoin">BTC</TabsTrigger>
+                    <TabsTrigger value="ethereum">ETH</TabsTrigger>
+                    <TabsTrigger value="algorand">ALGO</TabsTrigger>
+                  </TabsList>
 
-                {cryptoOptions.map((crypto) => {
-                  const Icon = crypto.icon
-                  return (
-                    <TabsContent key={crypto.id} value={crypto.id} className="space-y-4">
-                      <div className={`p-6 rounded-xl ${crypto.bgColor} ${crypto.borderColor} border-2 text-center`}>
-                        <Icon className={`h-12 w-12 ${crypto.color} mx-auto mb-3`} />
-                        <h3 className="text-xl font-semibold mb-2">{crypto.name}</h3>
-                        <Badge variant="outline" className={`${crypto.color} border-current`}>
-                          {crypto.symbol}
-                        </Badge>
-                      </div>
-
-                      {/* Montant personnalisé */}
-                      <div className="space-y-2">
-                        <Label htmlFor="amount">Montant (optionnel)</Label>
-                        <Input
-                          id="amount"
-                          type="number"
-                          step="0.00000001"
-                          placeholder={`0.00 ${crypto.symbol}`}
-                          value={customAmount}
-                          onChange={(e) => setCustomAmount(e.target.value)}
-                          className="bg-white dark:bg-gray-700"
-                        />
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Spécifiez un montant pour générer un QR code de paiement
-                        </p>
+                  {Object.entries(cryptoOptions).map(([key, crypto]) => (
+                    <TabsContent key={key} value={key} className="mt-4">
+                      <div className="flex items-center space-x-4 p-4 bg-muted rounded-lg">
+                        <div className={`w-12 h-12 ${crypto.color} rounded-full flex items-center justify-center`}>
+                          <span className="text-white font-bold text-lg">{crypto.icon}</span>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold">{crypto.name}</h3>
+                          <p className="text-sm text-muted-foreground">Recevez des paiements en {crypto.symbol}</p>
+                        </div>
                       </div>
                     </TabsContent>
-                  )
-                })}
-              </Tabs>
-            </CardContent>
-          </Card>
+                  ))}
+                </Tabs>
+              </CardContent>
+            </Card>
 
-          {/* Adresse et QR Code */}
-          <Card className="shadow-xl border-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <QrCode className="h-5 w-5 text-teal-600" />
-                Adresse de réception
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {isGenerating ? (
-                <div className="text-center py-8">
-                  <RefreshCw className="h-8 w-8 animate-spin text-emerald-600 mx-auto mb-4" />
-                  <p className="text-gray-600 dark:text-gray-300">Génération de l'adresse...</p>
+            {/* Payment Details */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Détails du paiement (optionnel)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="amount">Montant ({currentCrypto.symbol})</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.00000001"
+                    placeholder="0.00000000"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                  />
                 </div>
-              ) : currentAddress ? (
-                <>
-                  {/* QR Code */}
-                  <div className="text-center">
-                    <div className="inline-block p-4 bg-white rounded-xl shadow-lg">
-                      <img
-                        src={generateQRCodeUrl(currentAddress, customAmount) || "/placeholder.svg"}
-                        alt="QR Code"
-                        className="w-48 h-48 mx-auto"
-                        crossOrigin="anonymous"
-                      />
-                    </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                      Scannez ce QR code pour envoyer des {selectedCryptoInfo.symbol}
-                    </p>
-                  </div>
+                <div>
+                  <Label htmlFor="label">Libellé</Label>
+                  <Input
+                    id="label"
+                    placeholder="Ex: Paiement facture #123"
+                    value={label}
+                    onChange={(e) => setLabel(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="message">Message</Label>
+                  <Input
+                    id="message"
+                    placeholder="Message pour l'expéditeur"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
-                  {/* Adresse */}
-                  <div className="space-y-3">
-                    <Label>Adresse {selectedCryptoInfo.name}</Label>
+            {/* Address Display */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Votre adresse de réception</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex items-center justify-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="p-3 bg-muted rounded-lg break-all text-sm font-mono">
+                      {address || "Adresse non disponible"}
+                    </div>
                     <div className="flex gap-2">
-                      <Input
-                        value={currentAddress}
-                        readOnly
-                        className="font-mono text-sm bg-gray-50 dark:bg-gray-700"
-                      />
                       <Button
                         variant="outline"
-                        size="icon"
-                        onClick={() => handleCopyAddress(currentAddress)}
-                        className="shrink-0"
+                        size="sm"
+                        onClick={() => copyToClipboard(address, "Adresse")}
+                        disabled={!address}
                       >
-                        {copiedAddress === currentAddress ? (
-                          <CheckCircle className="h-4 w-4 text-emerald-600" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copier
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={shareAddress} disabled={!address}>
+                        <Share2 className="h-4 w-4 mr-2" />
+                        Partager
                       </Button>
                     </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Adresse courte: {formatAddress(currentAddress)}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column - QR Code */}
+          <div className="space-y-6">
+            {/* QR Code Display */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <QrCode className="mr-2 h-5 w-5" />
+                  Code QR
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-center space-y-4">
+                {qrCodeUrl && address ? (
+                  <>
+                    <div className="bg-white p-4 rounded-lg inline-block shadow-sm">
+                      <img
+                        src={qrCodeUrl || "/placeholder.svg"}
+                        alt="QR Code de l'adresse"
+                        className="w-64 h-64 mx-auto"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.src = `/placeholder.svg?height=256&width=256&text=QR+Code`
+                        }}
+                      />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Scannez ce code QR pour envoyer du {currentCrypto.symbol}
                     </p>
+                    <div className="flex gap-2 justify-center">
+                      <Button variant="outline" size="sm" onClick={downloadQRCode}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Télécharger
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => copyToClipboard(address, "Adresse")}>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copier adresse
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="w-64 h-64 bg-muted rounded-lg flex items-center justify-center mx-auto">
+                    <p className="text-muted-foreground">{loading ? "Chargement..." : "QR Code non disponible"}</p>
                   </div>
+                )}
+              </CardContent>
+            </Card>
 
-                  {/* Actions */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      variant="outline"
-                      onClick={handleRefreshAddress}
-                      disabled={isGenerating}
-                      className="flex items-center gap-2 bg-transparent"
-                    >
-                      <RefreshCw className={`h-4 w-4 ${isGenerating ? "animate-spin" : ""}`} />
-                      Nouvelle adresse
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleShareAddress}
-                      className="flex items-center gap-2 bg-transparent"
-                    >
-                      <Share2 className="h-4 w-4" />
-                      Partager
-                    </Button>
+            {/* Payment Summary */}
+            {amount && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Résumé du paiement</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Montant:</span>
+                    <span className="font-semibold">
+                      {amount} {currentCrypto.symbol}
+                    </span>
                   </div>
+                  {label && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Libellé:</span>
+                      <span>{label}</span>
+                    </div>
+                  )}
+                  {message && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Message:</span>
+                      <span>{message}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Adresse:</span>
+                    <span className="font-mono text-sm">{formatAddress(address)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-                  {/* Simulation pour les tests */}
-                  <Alert className="border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 dark:border-blue-700">
-                    <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    <AlertDescription className="text-blue-800 dark:text-blue-200">
-                      <div className="flex items-center justify-between">
-                        <span>Mode test - Simuler une réception</span>
-                        <Button
-                          size="sm"
-                          onClick={simulateReceiveTransaction}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                          Simuler
-                        </Button>
-                      </div>
-                    </AlertDescription>
-                  </Alert>
-                </>
-              ) : (
-                <Alert className="border-red-200 bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 dark:border-red-700">
-                  <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-                  <AlertDescription className="text-red-800 dark:text-red-200">
-                    Erreur lors de la génération de l'adresse. Veuillez réessayer.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
+            {/* Security Notice */}
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Important:</strong> Vérifiez toujours l'adresse avant d'effectuer un paiement. Les transactions
+                en cryptomonnaies sont irréversibles.
+              </AlertDescription>
+            </Alert>
+          </div>
         </div>
-
-        {/* Instructions */}
-        <Card className="mt-8 shadow-xl border-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-600" />
-              Instructions importantes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <h4 className="font-semibold text-emerald-700 dark:text-emerald-300">✅ À faire</h4>
-                <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                  <li>• Vérifiez toujours l'adresse avant d'envoyer</li>
-                  <li>• Utilisez le QR code pour éviter les erreurs</li>
-                  <li>• Conservez une copie de l'adresse</li>
-                  <li>• Testez avec un petit montant d'abord</li>
-                </ul>
-              </div>
-              <div className="space-y-3">
-                <h4 className="font-semibold text-red-700 dark:text-red-300">❌ À éviter</h4>
-                <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                  <li>• N'envoyez jamais d'autres cryptos sur cette adresse</li>
-                  <li>• Ne partagez pas votre phrase de récupération</li>
-                  <li>• Ne faites pas confiance aux adresses par email</li>
-                  <li>• N'utilisez pas d'adresses non vérifiées</li>
-                </ul>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )
