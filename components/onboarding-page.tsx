@@ -2,467 +2,271 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Eye, Wallet, Shield, Key, AlertTriangle, CheckCircle, Copy, RefreshCw } from "lucide-react"
-import { generateWallet, restoreWallet, validateSeedPhrase, hashPin } from "@/lib/wallet-utils"
-import { walletStorage } from "@/lib/storage"
-import { handleError } from "@/lib/error-handler"
+import { Wallet, Eye, EyeOff, Copy, Check, AlertTriangle } from "lucide-react"
+import { createWallet } from "@/lib/wallet-utils"
 
 interface OnboardingPageProps {
   onComplete: (walletData: any) => void
 }
 
 export function OnboardingPage({ onComplete }: OnboardingPageProps) {
-  const [currentStep, setCurrentStep] = useState(0)
+  const [step, setStep] = useState(1)
   const [walletData, setWalletData] = useState<any>(null)
-  const [pin, setPin] = useState("")
-  const [confirmPin, setConfirmPin] = useState("")
-  const [seedPhrase, setSeedPhrase] = useState("")
   const [showSeedPhrase, setShowSeedPhrase] = useState(false)
   const [seedPhraseConfirmed, setSeedPhraseConfirmed] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [activeTab, setActiveTab] = useState("create")
-
-  const steps = [
-    { title: "Bienvenue", description: "Configuration de votre portefeuille" },
-    { title: "Sécurité", description: "Définir votre code PIN" },
-    { title: "Portefeuille", description: "Créer ou restaurer" },
-    { title: "Sauvegarde", description: "Sauvegarder votre phrase de récupération" },
-    { title: "Confirmation", description: "Finaliser la configuration" },
-  ]
+  const [importSeedPhrase, setImportSeedPhrase] = useState("")
+  const [isImporting, setIsImporting] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const handleCreateWallet = async () => {
-    setIsLoading(true)
-    setError("")
-
     try {
-      const wallet = await generateWallet()
+      const wallet = createWallet()
       setWalletData(wallet)
-      setCurrentStep(3)
-    } catch (err) {
-      const errorInfo = handleError(err)
-      setError(errorInfo.message)
-    } finally {
-      setIsLoading(false)
+      setStep(2)
+    } catch (error) {
+      console.error("Error creating wallet:", error)
     }
   }
 
-  const handleRestoreWallet = async () => {
-    if (!seedPhrase.trim()) {
-      setError("Veuillez saisir votre phrase de récupération")
-      return
-    }
-
-    if (!validateSeedPhrase(seedPhrase)) {
-      setError("Phrase de récupération invalide")
-      return
-    }
-
-    setIsLoading(true)
-    setError("")
-
-    try {
-      const addresses = await restoreWallet(seedPhrase)
-      setWalletData({ mnemonic: seedPhrase, addresses })
-      setCurrentStep(4)
-    } catch (err) {
-      const errorInfo = handleError(err)
-      setError(errorInfo.message)
-    } finally {
-      setIsLoading(false)
-    }
+  const handleImportWallet = () => {
+    setIsImporting(true)
+    setStep(2)
   }
 
-  const handlePinSetup = async () => {
-    if (pin.length !== 6) {
-      setError("Le code PIN doit contenir 6 chiffres")
-      return
-    }
-
-    if (pin !== confirmPin) {
-      setError("Les codes PIN ne correspondent pas")
-      return
-    }
-
-    setCurrentStep(2)
-    setError("")
-  }
-
-  const handleComplete = async () => {
-    if (!walletData) {
-      setError("Données du portefeuille manquantes")
-      return
-    }
-
-    setIsLoading(true)
-
-    try {
-      const hashedPin = await hashPin(pin)
-
-      const completeWalletData = {
-        ...walletData,
-        hashedPin,
-        balances: {
-          bitcoin: "0",
-          ethereum: "0",
-          algorand: "0",
-        },
-        isSetup: true,
-      }
-
-      await walletStorage.saveWalletData(completeWalletData)
-      onComplete(completeWalletData)
-    } catch (err) {
-      const errorInfo = handleError(err)
-      setError(errorInfo.message)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const copySeedPhrase = () => {
+  const handleCopySeedPhrase = async () => {
     if (walletData?.mnemonic) {
-      navigator.clipboard.writeText(walletData.mnemonic)
+      await navigator.clipboard.writeText(walletData.mnemonic)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
     }
   }
 
-  const renderStep = () => {
-    switch (currentStep) {
-      case 0:
-        return (
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-                <Wallet className="h-8 w-8 text-blue-600" />
-              </div>
-              <CardTitle className="text-2xl">Bienvenue dans CryptoPay</CardTitle>
-              <CardDescription>Votre portefeuille crypto sécurisé et facile à utiliser</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <Shield className="h-5 w-5 text-green-600" />
-                  <span className="text-sm">Sécurité de niveau bancaire</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Key className="h-5 w-5 text-green-600" />
-                  <span className="text-sm">Vous contrôlez vos clés privées</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <span className="text-sm">Support multi-devises</span>
-                </div>
-              </div>
-              <Button onClick={() => setCurrentStep(1)} className="w-full">
-                Commencer
-              </Button>
-            </CardContent>
-          </Card>
-        )
+  const handleConfirmSeedPhrase = () => {
+    setSeedPhraseConfirmed(true)
+    setStep(3)
+  }
 
-      case 1:
-        return (
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-                <Shield className="h-8 w-8 text-blue-600" />
-              </div>
-              <CardTitle>Sécuriser votre portefeuille</CardTitle>
-              <CardDescription>Définissez un code PIN à 6 chiffres pour protéger votre portefeuille</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="pin">Code PIN (6 chiffres)</Label>
-                <Input
-                  id="pin"
-                  type="password"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="••••••"
-                  maxLength={6}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPin">Confirmer le code PIN</Label>
-                <Input
-                  id="confirmPin"
-                  type="password"
-                  value={confirmPin}
-                  onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="••••••"
-                  maxLength={6}
-                />
-              </div>
-              {error && (
-                <Alert variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              <div className="flex space-x-2">
-                <Button variant="outline" onClick={() => setCurrentStep(0)} className="flex-1">
-                  Retour
-                </Button>
-                <Button
-                  onClick={handlePinSetup}
-                  disabled={pin.length !== 6 || confirmPin.length !== 6}
-                  className="flex-1"
-                >
-                  Continuer
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )
-
-      case 2:
-        return (
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <CardTitle>Configuration du portefeuille</CardTitle>
-              <CardDescription>Créez un nouveau portefeuille ou restaurez un portefeuille existant</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="create">Créer</TabsTrigger>
-                  <TabsTrigger value="restore">Restaurer</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="create" className="space-y-4">
-                  <div className="text-center space-y-2">
-                    <Wallet className="h-12 w-12 mx-auto text-blue-600" />
-                    <h3 className="font-semibold">Nouveau portefeuille</h3>
-                    <p className="text-sm text-gray-600">
-                      Créez un nouveau portefeuille avec une phrase de récupération sécurisée
-                    </p>
-                  </div>
-                  <Button onClick={handleCreateWallet} disabled={isLoading} className="w-full">
-                    {isLoading ? (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        Création...
-                      </>
-                    ) : (
-                      "Créer un portefeuille"
-                    )}
-                  </Button>
-                </TabsContent>
-
-                <TabsContent value="restore" className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="seedPhrase">Phrase de récupération</Label>
-                    <Textarea
-                      id="seedPhrase"
-                      value={seedPhrase}
-                      onChange={(e) => setSeedPhrase(e.target.value)}
-                      placeholder="Saisissez votre phrase de récupération de 12 ou 24 mots..."
-                      rows={4}
-                    />
-                  </div>
-                  <Button onClick={handleRestoreWallet} disabled={isLoading || !seedPhrase.trim()} className="w-full">
-                    {isLoading ? (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        Restauration...
-                      </>
-                    ) : (
-                      "Restaurer le portefeuille"
-                    )}
-                  </Button>
-                </TabsContent>
-              </Tabs>
-
-              {error && (
-                <Alert variant="destructive" className="mt-4">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              <div className="flex space-x-2 mt-4">
-                <Button variant="outline" onClick={() => setCurrentStep(1)} className="flex-1">
-                  Retour
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )
-
-      case 3:
-        return (
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-                <CheckCircle className="h-8 w-8 text-green-600" />
-              </div>
-              <CardTitle>Phrase de récupération</CardTitle>
-              <CardDescription>
-                Sauvegardez cette phrase en lieu sûr. Elle est nécessaire pour restaurer votre portefeuille.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Important :</strong> Cette phrase de récupération est le seul moyen de restaurer votre
-                  portefeuille. Ne la partagez jamais avec personne.
-                </AlertDescription>
-              </Alert>
-
-              <div className="relative">
-                <div
-                  className={`p-4 bg-gray-50 rounded-lg border-2 border-dashed ${showSeedPhrase ? "border-gray-300" : "border-gray-200"}`}
-                >
-                  {showSeedPhrase ? (
-                    <div className="space-y-2">
-                      <p className="text-sm font-mono break-all">{walletData?.mnemonic}</p>
-                      <Button variant="outline" size="sm" onClick={copySeedPhrase} className="w-full bg-transparent">
-                        <Copy className="mr-2 h-4 w-4" />
-                        Copier
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="text-center">
-                      <Eye className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                      <p className="text-sm text-gray-600">Cliquez pour révéler votre phrase de récupération</p>
-                    </div>
-                  )}
-                </div>
-                {!showSeedPhrase && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowSeedPhrase(true)}
-                    className="absolute inset-0 w-full h-full bg-white/80 hover:bg-white/90"
-                  >
-                    <Eye className="mr-2 h-4 w-4" />
-                    Révéler la phrase
-                  </Button>
-                )}
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="seedPhraseConfirmed"
-                  checked={seedPhraseConfirmed}
-                  onCheckedChange={(checked) => setSeedPhraseConfirmed(checked as boolean)}
-                />
-                <Label htmlFor="seedPhraseConfirmed" className="text-sm">
-                  J'ai sauvegardé ma phrase de récupération en lieu sûr
-                </Label>
-              </div>
-
-              <div className="flex space-x-2">
-                <Button variant="outline" onClick={() => setCurrentStep(2)} className="flex-1">
-                  Retour
-                </Button>
-                <Button onClick={() => setCurrentStep(4)} disabled={!seedPhraseConfirmed} className="flex-1">
-                  Continuer
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )
-
-      case 4:
-        return (
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-                <CheckCircle className="h-8 w-8 text-green-600" />
-              </div>
-              <CardTitle>Configuration terminée</CardTitle>
-              <CardDescription>Votre portefeuille est prêt à être utilisé</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <h4 className="font-semibold text-sm mb-2">Adresses générées :</h4>
-                  <div className="space-y-2 text-xs">
-                    <div>
-                      <span className="font-medium">Bitcoin:</span>
-                      <p className="font-mono break-all text-gray-600">{walletData?.addresses?.bitcoin}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium">Ethereum:</span>
-                      <p className="font-mono break-all text-gray-600">{walletData?.addresses?.ethereum}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium">Algorand:</span>
-                      <p className="font-mono break-all text-gray-600">{walletData?.addresses?.algorand}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              <div className="flex space-x-2">
-                <Button variant="outline" onClick={() => setCurrentStep(3)} className="flex-1">
-                  Retour
-                </Button>
-                <Button onClick={handleComplete} disabled={isLoading} className="flex-1">
-                  {isLoading ? (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      Finalisation...
-                    </>
-                  ) : (
-                    "Terminer"
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )
-
-      default:
-        return null
+  const handleImportConfirm = () => {
+    if (importSeedPhrase.trim()) {
+      // In a real app, you would validate and import the seed phrase
+      const importedWallet = {
+        mnemonic: importSeedPhrase.trim(),
+        addresses: {
+          bitcoin: "1ImportedBitcoinAddress",
+          ethereum: "0xImportedEthereumAddress",
+          algorand: "IMPORTEDALGORANDADDRESS",
+        },
+        balances: {
+          bitcoin: 0,
+          ethereum: 0,
+          algorand: 0,
+        },
+      }
+      setWalletData(importedWallet)
+      setStep(3)
     }
+  }
+
+  const handleComplete = () => {
+    onComplete(walletData)
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Progress indicator */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-2">
-            {steps.map((step, index) => (
-              <div
-                key={index}
-                className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium ${
-                  index <= currentStep ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
-                }`}
-              >
-                {index + 1}
-              </div>
-            ))}
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
-            />
-          </div>
-          <div className="text-center mt-2">
-            <h2 className="text-lg font-semibold">{steps[currentStep]?.title}</h2>
-            <p className="text-sm text-gray-600">{steps[currentStep]?.description}</p>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 p-4 flex items-center justify-center">
+      <div className="w-full max-w-2xl">
+        <Card className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-slate-200 dark:border-slate-700 shadow-2xl">
+          <CardHeader className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 dark:from-purple-500 dark:to-pink-600 rounded-full mb-4 mx-auto">
+              <Wallet className="w-8 h-8 text-white" />
+            </div>
+            <CardTitle className="text-2xl font-bold text-slate-900 dark:text-white">
+              {step === 1 && "Configuration du Portefeuille"}
+              {step === 2 && (isImporting ? "Importer un Portefeuille" : "Phrase de Récupération")}
+              {step === 3 && "Configuration Terminée"}
+            </CardTitle>
+          </CardHeader>
 
-        {renderStep()}
+          <CardContent className="space-y-6">
+            {step === 1 && (
+              <div className="space-y-4">
+                <p className="text-center text-slate-600 dark:text-slate-300">
+                  Choisissez comment vous souhaitez configurer votre portefeuille crypto.
+                </p>
+
+                <div className="grid gap-4">
+                  <Button
+                    onClick={handleCreateWallet}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white p-6 h-auto"
+                    size="lg"
+                  >
+                    <div className="text-left">
+                      <div className="font-semibold">Créer un nouveau portefeuille</div>
+                      <div className="text-sm opacity-90">Générer une nouvelle phrase de récupération</div>
+                    </div>
+                  </Button>
+
+                  <Button
+                    onClick={handleImportWallet}
+                    variant="outline"
+                    className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 p-6 h-auto bg-transparent"
+                    size="lg"
+                  >
+                    <div className="text-left">
+                      <div className="font-semibold">Importer un portefeuille existant</div>
+                      <div className="text-sm opacity-70">Utiliser une phrase de récupération existante</div>
+                    </div>
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {step === 2 && !isImporting && walletData && (
+              <div className="space-y-6">
+                <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <AlertDescription className="text-amber-800 dark:text-amber-200">
+                    <strong>Important :</strong> Sauvegardez cette phrase de récupération en lieu sûr. Elle est le seul
+                    moyen de récupérer votre portefeuille.
+                  </AlertDescription>
+                </Alert>
+
+                <div className="space-y-4">
+                  <Label className="text-slate-700 dark:text-slate-300">Phrase de récupération (12 mots)</Label>
+                  <div className="relative">
+                    <Textarea
+                      value={walletData.mnemonic}
+                      readOnly
+                      className={`min-h-[100px] font-mono text-sm bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-600 ${
+                        showSeedPhrase ? "" : "blur-sm"
+                      }`}
+                    />
+                    {!showSeedPhrase && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Button
+                          onClick={() => setShowSeedPhrase(true)}
+                          variant="outline"
+                          size="sm"
+                          className="bg-white dark:bg-slate-800"
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          Afficher la phrase
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {showSeedPhrase && (
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleCopySeedPhrase}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 bg-transparent"
+                      >
+                        {copied ? (
+                          <>
+                            <Check className="w-4 h-4 mr-2" />
+                            Copié !
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4 mr-2" />
+                            Copier
+                          </>
+                        )}
+                      </Button>
+                      <Button onClick={() => setShowSeedPhrase(false)} variant="outline" size="sm">
+                        <EyeOff className="w-4 h-4 mr-2" />
+                        Masquer
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-4">
+                  <Button onClick={() => setStep(1)} variant="outline" className="flex-1">
+                    Retour
+                  </Button>
+                  <Button
+                    onClick={handleConfirmSeedPhrase}
+                    disabled={!showSeedPhrase}
+                    className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                  >
+                    J'ai sauvegardé ma phrase
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {step === 2 && isImporting && (
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <Label htmlFor="seedPhrase" className="text-slate-700 dark:text-slate-300">
+                    Phrase de récupération (12 ou 24 mots)
+                  </Label>
+                  <Textarea
+                    id="seedPhrase"
+                    placeholder="Entrez votre phrase de récupération séparée par des espaces..."
+                    value={importSeedPhrase}
+                    onChange={(e) => setImportSeedPhrase(e.target.value)}
+                    className="min-h-[100px] font-mono text-sm bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-600"
+                  />
+                </div>
+
+                <div className="flex gap-4">
+                  <Button onClick={() => setStep(1)} variant="outline" className="flex-1">
+                    Retour
+                  </Button>
+                  <Button
+                    onClick={handleImportConfirm}
+                    disabled={!importSeedPhrase.trim()}
+                    className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                  >
+                    Importer le portefeuille
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="space-y-6 text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                  <Check className="w-8 h-8 text-white" />
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
+                    Portefeuille configuré avec succès !
+                  </h3>
+                  <p className="text-slate-600 dark:text-slate-300">
+                    Votre portefeuille crypto est maintenant prêt à être utilisé.
+                  </p>
+                </div>
+
+                <div className="bg-slate-100 dark:bg-slate-700 rounded-lg p-4 space-y-2">
+                  <div className="text-sm text-slate-600 dark:text-slate-400">Adresses générées :</div>
+                  <div className="space-y-1 text-xs font-mono">
+                    <div>BTC: {walletData?.addresses?.bitcoin}</div>
+                    <div>ETH: {walletData?.addresses?.ethereum}</div>
+                    <div>ALGO: {walletData?.addresses?.algorand}</div>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleComplete}
+                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                  size="lg"
+                >
+                  Accéder au portefeuille
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

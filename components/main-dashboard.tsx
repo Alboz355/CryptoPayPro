@@ -93,13 +93,13 @@ export function MainDashboard({
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
 
     if (diffInMinutes < 60) {
-      return `${diffInMinutes} ${diffInMinutes === 1 ? t.time.minute : t.time.minutes} ${t.time.ago}`
+      return `${diffInMinutes} ${diffInMinutes === 1 ? "minute" : "minutes"} ago`
     } else if (diffInMinutes < 1440) {
       const hours = Math.floor(diffInMinutes / 60)
-      return `${hours} ${hours === 1 ? t.time.hour : t.time.hours} ${t.time.ago}`
+      return `${hours} ${hours === 1 ? "hour" : "hours"} ago`
     } else {
       const days = Math.floor(diffInMinutes / 1440)
-      return `${days} ${days === 1 ? t.time.day : t.time.days} ${t.time.ago}`
+      return `${days} ${days === 1 ? "day" : "days"} ago`
     }
   }
 
@@ -119,11 +119,11 @@ export function MainDashboard({
   const getStatusText = (status: string) => {
     switch (status) {
       case "completed":
-        return t.dashboard.transactions.completed
+        return "Completed"
       case "pending":
-        return t.dashboard.transactions.pending
+        return "Pending"
       case "failed":
-        return t.dashboard.transactions.failed
+        return "Failed"
       default:
         return status
     }
@@ -136,10 +136,10 @@ export function MainDashboard({
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">
-              {userType === "merchant" ? t.dashboard.professionalTitle : t.dashboard.title}
+              {userType === "merchant" ? "Dashboard Professionnel" : "Tableau de Bord"}
             </h1>
             <p className="text-muted-foreground">
-              {userType === "merchant" ? t.dashboard.professionalSubtitle : t.dashboard.subtitle}
+              {userType === "merchant" ? "Gérez votre activité crypto" : "Gérez vos cryptomonnaies"}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -157,7 +157,7 @@ export function MainDashboard({
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 mb-2">{t.dashboard.totalBalance}</p>
+                <p className="text-blue-100 mb-2">Solde Total</p>
                 <p className="text-3xl font-bold">
                   CHF {totalBalance.toLocaleString("fr-CH", { minimumFractionDigits: 2 })}
                 </p>
@@ -169,7 +169,7 @@ export function MainDashboard({
                   )}
                   <span className={`text-sm ${monthlyChange >= 0 ? "text-green-300" : "text-red-300"}`}>
                     {monthlyChange >= 0 ? "+" : ""}
-                    {monthlyChange}% {t.time.thisMonth}
+                    {monthlyChange}% ce mois
                   </span>
                 </div>
               </div>
@@ -187,7 +187,7 @@ export function MainDashboard({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Button variant="outline" className="h-20 flex-col gap-2 bg-transparent" onClick={() => onNavigate("send")}>
             <Send className="h-6 w-6" />
-            <span>{t.dashboard.quickActions.send}</span>
+            <span>Envoyer</span>
           </Button>
           <Button
             variant="outline"
@@ -195,15 +195,15 @@ export function MainDashboard({
             onClick={() => onNavigate("receive")}
           >
             <Download className="h-6 w-6" />
-            <span>{t.dashboard.quickActions.receive}</span>
+            <span>Recevoir</span>
           </Button>
           <Button variant="outline" className="h-20 flex-col gap-2 bg-transparent" onClick={onShowMtPelerin}>
             <ShoppingCart className="h-6 w-6" />
-            <span>{t.dashboard.quickActions.buy}</span>
+            <span>Acheter</span>
           </Button>
           <Button variant="outline" className="h-20 flex-col gap-2 bg-transparent" onClick={() => onNavigate("tpe")}>
             <CreditCard className="h-6 w-6" />
-            <span>{t.dashboard.quickActions.tpeMode}</span>
+            <span>Mode TPE</span>
           </Button>
         </div>
 
@@ -217,7 +217,7 @@ export function MainDashboard({
                     <BarChart3 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">{t.dashboard.statistics.monthlyTransactions}</p>
+                    <p className="text-sm text-muted-foreground">Transactions mensuelles</p>
                     <p className="text-2xl font-bold">{monthlyTransactions}</p>
                   </div>
                 </div>
@@ -231,7 +231,7 @@ export function MainDashboard({
                     <DollarSign className="h-5 w-5 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">{t.dashboard.statistics.volumeExchanged}</p>
+                    <p className="text-sm text-muted-foreground">Volume échangé</p>
                     <p className="text-2xl font-bold">CHF {monthlyVolume.toLocaleString("fr-CH")}</p>
                   </div>
                 </div>
@@ -245,7 +245,7 @@ export function MainDashboard({
                     <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">{t.tpe.stats.clients}</p>
+                    <p className="text-sm text-muted-foreground">Clients</p>
                     <p className="text-2xl font-bold">{clientsCount}</p>
                   </div>
                 </div>
@@ -259,7 +259,7 @@ export function MainDashboard({
                     <Target className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">{t.dashboard.statistics.monthlyGoal}</p>
+                    <p className="text-sm text-muted-foreground">Objectif mensuel</p>
                     <div className="flex items-center gap-2">
                       <Progress value={monthlyGoal} className="flex-1" />
                       <span className="text-sm font-medium">{monthlyGoal}%</span>
@@ -275,7 +275,7 @@ export function MainDashboard({
           {/* Portfolio */}
           <Card>
             <CardHeader>
-              <CardTitle>{t.dashboard.portfolio}</CardTitle>
+              <CardTitle>Portefeuille</CardTitle>
             </CardHeader>
             <CardContent>
               <CryptoList />
@@ -285,9 +285,9 @@ export function MainDashboard({
           {/* Recent Transactions */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>{t.dashboard.recentTransactions}</CardTitle>
+              <CardTitle>Transactions Récentes</CardTitle>
               <Button variant="ghost" size="sm" onClick={() => onNavigate("history")}>
-                {t.dashboard.transactions.viewAll}
+                Voir tout
               </Button>
             </CardHeader>
             <CardContent>
@@ -309,8 +309,7 @@ export function MainDashboard({
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-medium">
-                            {tx.type === "received" ? t.dashboard.transactions.received : t.dashboard.transactions.sent}{" "}
-                            {tx.crypto}
+                            {tx.type === "received" ? "Reçu" : "Envoyé"} {tx.crypto}
                           </p>
                           {getStatusIcon(tx.status)}
                         </div>
@@ -342,6 +341,49 @@ export function MainDashboard({
             <RealTimePrices />
           </CardContent>
         </Card>
+
+        {/* Wallet Addresses Display */}
+        {walletData && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Vos Adresses</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 rounded-lg border">
+                  <div>
+                    <p className="font-medium">Bitcoin (BTC)</p>
+                    <p className="text-sm text-muted-foreground font-mono">{walletData.addresses.bitcoin}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">Solde</p>
+                    <p className="font-medium">{walletData.balances.bitcoin} BTC</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg border">
+                  <div>
+                    <p className="font-medium">Ethereum (ETH)</p>
+                    <p className="text-sm text-muted-foreground font-mono">{walletData.addresses.ethereum}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">Solde</p>
+                    <p className="font-medium">{walletData.balances.ethereum} ETH</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg border">
+                  <div>
+                    <p className="font-medium">Algorand (ALGO)</p>
+                    <p className="text-sm text-muted-foreground font-mono">{walletData.addresses.algorand}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">Solde</p>
+                    <p className="font-medium">{walletData.balances.algorand} ALGO</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )

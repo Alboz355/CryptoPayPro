@@ -1,197 +1,122 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { AppPresentation } from "@/components/app-presentation"
 import { OnboardingPage } from "@/components/onboarding-page"
 import { PinSetupPage } from "@/components/pin-setup-page"
-import { MainDashboard } from "@/components/main-dashboard"
-import { SendPage } from "@/components/send-page"
-import { ReceivePage } from "@/components/receive-page"
-import { SettingsPage } from "@/components/settings-page"
-import { TransactionHistory } from "@/components/transaction-history"
-import { TPEDashboard } from "@/components/tpe-dashboard"
-import { TPEMainPage } from "@/components/tpe-main-page"
-import { TPEPaymentPage } from "@/components/tpe-payment-page"
-import { TPEBillingPage } from "@/components/tpe-billing-page"
-import { TPEConversionPage } from "@/components/tpe-conversion-page"
-import { TPESearchPage } from "@/components/tpe-search-page"
-import { TPEHistoryPage } from "@/components/tpe-history-page"
-import { TPESettingsPage } from "@/components/tpe-settings-page"
-import { TPEStatisticsPage } from "@/components/tpe-statistics-page"
-import { TPEVatManagement } from "@/components/tpe-vat-management"
 import { UserTypeSelection } from "@/components/user-type-selection"
-import { AppPresentation } from "@/components/app-presentation"
+import { MainDashboard } from "@/components/main-dashboard"
+import { TPEDashboard } from "@/components/tpe-dashboard"
+import { ThemeProvider } from "@/components/theme-provider"
 import { LanguageProvider } from "@/contexts/language-context"
 import { CurrencyProvider } from "@/contexts/currency-context"
-import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster"
-import { walletStorage } from "@/lib/storage"
-import { ErrorBoundary } from "@/components/error-boundary"
-import { LoadingFallback } from "@/components/loading-fallback"
-
-export type AppPage =
-  | "presentation"
-  | "user-type-selection"
-  | "onboarding"
-  | "pin-setup"
-  | "dashboard"
-  | "send"
-  | "receive"
-  | "history"
-  | "settings"
-  | "tpe-dashboard"
-  | "tpe-main"
-  | "tpe-payment"
-  | "tpe-billing"
-  | "tpe-conversion"
-  | "tpe-search"
-  | "tpe-history"
-  | "tpe-settings"
-  | "tpe-statistics"
-  | "tpe-vat"
-
-export type UserType = "individual" | "business" | null
+import { Toaster } from "@/components/ui/sonner"
 
 export default function Home() {
-  const [currentPage, setCurrentPage] = useState<AppPage>("presentation")
-  const [userType, setUserType] = useState<UserType>(null)
+  const [currentStep, setCurrentStep] = useState("presentation")
   const [walletData, setWalletData] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [userType, setUserType] = useState<"individual" | "business" | null>(null)
+  const [pin, setPin] = useState<string>("")
+  const [isTPEMode, setIsTPEMode] = useState(false)
 
   useEffect(() => {
-    initializeApp()
+    // Check if user has already completed onboarding
+    const savedWallet = localStorage.getItem("wallet")
+    const savedPin = localStorage.getItem("pin")
+    const savedUserType = localStorage.getItem("userType")
+
+    if (savedWallet && savedPin && savedUserType) {
+      setWalletData(JSON.parse(savedWallet))
+      setPin(savedPin)
+      setUserType(savedUserType as "individual" | "business")
+      setCurrentStep("dashboard")
+    }
   }, [])
 
-  const initializeApp = async () => {
-    try {
-      const savedWalletData = await walletStorage.loadWalletData()
-
-      if (savedWalletData && savedWalletData.isSetup) {
-        setWalletData(savedWalletData)
-
-        // Determine user type based on saved data
-        if (savedWalletData.userType) {
-          setUserType(savedWalletData.userType)
-          setCurrentPage(savedWalletData.userType === "business" ? "tpe-dashboard" : "dashboard")
-        } else {
-          setCurrentPage("user-type-selection")
-        }
-      } else {
-        setCurrentPage("presentation")
-      }
-    } catch (error) {
-      console.error("Failed to initialize app:", error)
-      setCurrentPage("presentation")
-    } finally {
-      setIsLoading(false)
-    }
+  const handlePresentationComplete = () => {
+    setCurrentStep("onboarding")
   }
 
-  const handleUserTypeSelection = async (type: UserType) => {
+  const handleOnboardingComplete = (wallet: any) => {
+    setWalletData(wallet)
+    localStorage.setItem("wallet", JSON.stringify(wallet))
+    setCurrentStep("pinSetup")
+  }
+
+  const handlePinSetup = (newPin: string) => {
+    setPin(newPin)
+    localStorage.setItem("pin", newPin)
+    setCurrentStep("userTypeSelection")
+  }
+
+  const handleUserTypeSelection = (type: "individual" | "business") => {
     setUserType(type)
+    localStorage.setItem("userType", type)
+    setCurrentStep("dashboard")
+  }
 
-    // Save user type
-    if (walletData) {
-      const updatedWalletData = { ...walletData, userType: type }
-      await walletStorage.saveWalletData(updatedWalletData)
-      setWalletData(updatedWalletData)
+  const handleNavigate = (page: string) => {
+    if (page === "tpe") {
+      setIsTPEMode(true)
+    } else {
+      setIsTPEMode(false)
     }
-
-    setCurrentPage("onboarding")
   }
 
-  const handleOnboardingComplete = (data: any) => {
-    setWalletData(data)
-    setCurrentPage(userType === "business" ? "tpe-dashboard" : "dashboard")
+  const handleExitTPE = () => {
+    setIsTPEMode(false)
   }
 
-  const handlePinSetupComplete = () => {
-    setCurrentPage(userType === "business" ? "tpe-dashboard" : "dashboard")
+  if (currentStep === "presentation") {
+    return (
+      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+        <AppPresentation onComplete={handlePresentationComplete} />
+      </ThemeProvider>
+    )
   }
 
-  const navigateTo = (page: AppPage) => {
-    setCurrentPage(page)
+  if (currentStep === "onboarding") {
+    return (
+      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+        <OnboardingPage onComplete={handleOnboardingComplete} />
+      </ThemeProvider>
+    )
   }
 
-  if (isLoading) {
-    return <LoadingFallback />
+  if (currentStep === "pinSetup") {
+    return (
+      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+        <PinSetupPage onComplete={handlePinSetup} />
+      </ThemeProvider>
+    )
   }
 
-  const renderCurrentPage = () => {
-    switch (currentPage) {
-      case "presentation":
-        return <AppPresentation onContinue={() => setCurrentPage("user-type-selection")} />
-
-      case "user-type-selection":
-        return <UserTypeSelection onSelect={handleUserTypeSelection} />
-
-      case "onboarding":
-        return <OnboardingPage onComplete={handleOnboardingComplete} />
-
-      case "pin-setup":
-        return <PinSetupPage onComplete={handlePinSetupComplete} />
-
-      case "dashboard":
-        return <MainDashboard walletData={walletData} onNavigate={navigateTo} />
-
-      case "send":
-        return <SendPage onBack={() => navigateTo("dashboard")} />
-
-      case "receive":
-        return <ReceivePage onBack={() => navigateTo("dashboard")} />
-
-      case "history":
-        return <TransactionHistory onBack={() => navigateTo("dashboard")} />
-
-      case "settings":
-        return <SettingsPage onBack={() => navigateTo("dashboard")} />
-
-      case "tpe-dashboard":
-        return <TPEDashboard onNavigate={navigateTo} />
-
-      case "tpe-main":
-        return <TPEMainPage onBack={() => navigateTo("tpe-dashboard")} />
-
-      case "tpe-payment":
-        return <TPEPaymentPage onBack={() => navigateTo("tpe-dashboard")} />
-
-      case "tpe-billing":
-        return <TPEBillingPage onBack={() => navigateTo("tpe-dashboard")} />
-
-      case "tpe-conversion":
-        return <TPEConversionPage onBack={() => navigateTo("tpe-dashboard")} />
-
-      case "tpe-search":
-        return <TPESearchPage onBack={() => navigateTo("tpe-dashboard")} />
-
-      case "tpe-history":
-        return <TPEHistoryPage onBack={() => navigateTo("tpe-dashboard")} />
-
-      case "tpe-settings":
-        return <TPESettingsPage onBack={() => navigateTo("tpe-dashboard")} />
-
-      case "tpe-statistics":
-        return <TPEStatisticsPage onBack={() => navigateTo("tpe-dashboard")} />
-
-      case "tpe-vat":
-        return <TPEVatManagement onBack={() => navigateTo("tpe-settings")} />
-
-      default:
-        return <AppPresentation onContinue={() => setCurrentPage("user-type-selection")} />
-    }
+  if (currentStep === "userTypeSelection") {
+    return (
+      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+        <UserTypeSelection onComplete={handleUserTypeSelection} />
+      </ThemeProvider>
+    )
   }
 
   return (
-    <ErrorBoundary>
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-        <LanguageProvider>
-          <CurrencyProvider>
-            <div className="min-h-screen bg-background">
-              {renderCurrentPage()}
-              <Toaster />
-            </div>
-          </CurrencyProvider>
-        </LanguageProvider>
-      </ThemeProvider>
-    </ErrorBoundary>
+    <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+      <LanguageProvider>
+        <CurrencyProvider>
+          {isTPEMode ? (
+            <TPEDashboard
+              onNavigate={handleNavigate}
+              onExitTPE={handleExitTPE}
+              walletData={walletData}
+              userType={userType}
+              pin={pin}
+            />
+          ) : (
+            <MainDashboard onNavigate={handleNavigate} walletData={walletData} userType={userType} pin={pin} />
+          )}
+          <Toaster />
+        </CurrencyProvider>
+      </LanguageProvider>
+    </ThemeProvider>
   )
 }
