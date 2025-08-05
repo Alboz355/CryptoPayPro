@@ -1,54 +1,41 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import type { Language } from "@/lib/i18n"
-import { getTranslation } from "@/lib/i18n"
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { Language, getTranslation, Translations } from '@/lib/i18n'
 
 interface LanguageContextType {
   language: Language
   setLanguage: (language: Language) => void
-  t: (key: string) => string
-  isLanguageSelected: boolean
+  t: Translations
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined)
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("fr")
-  const [isLanguageSelected, setIsLanguageSelected] = useState(false)
+interface LanguageProviderProps {
+  children: ReactNode
+}
+
+export function LanguageProvider({ children }: LanguageProviderProps) {
+  const [language, setLanguageState] = useState<Language>('fr')
+  const [t, setT] = useState<Translations>(getTranslation('fr'))
 
   useEffect(() => {
-    // Check if language was previously selected
-    const savedLanguage = localStorage.getItem("selected-language") as Language
-    const languageSelected = localStorage.getItem("language-selected") === "true"
-
-    if (savedLanguage && languageSelected) {
+    // Load saved language from localStorage
+    const savedLanguage = localStorage.getItem('app-language') as Language
+    if (savedLanguage && (savedLanguage === 'fr' || savedLanguage === 'en')) {
       setLanguageState(savedLanguage)
-      setIsLanguageSelected(true)
+      setT(getTranslation(savedLanguage))
     }
   }, [])
 
   const setLanguage = (newLanguage: Language) => {
     setLanguageState(newLanguage)
-    setIsLanguageSelected(true)
-    localStorage.setItem("selected-language", newLanguage)
-    localStorage.setItem("language-selected", "true")
-  }
-
-  const t = (key: string): string => {
-    const translations = getTranslation(language)
-    const keys = key.split(".")
-    let value: any = translations
-
-    for (const k of keys) {
-      value = value?.[k]
-    }
-
-    return value || key
+    setT(getTranslation(newLanguage))
+    localStorage.setItem('app-language', newLanguage)
   }
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t, isLanguageSelected }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t }}>
       {children}
     </LanguageContext.Provider>
   )
@@ -57,7 +44,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 export function useLanguage() {
   const context = useContext(LanguageContext)
   if (context === undefined) {
-    throw new Error("useLanguage must be used within a LanguageProvider")
+    throw new Error('useLanguage must be used within a LanguageProvider')
   }
   return context
 }

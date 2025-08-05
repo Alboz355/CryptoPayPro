@@ -94,8 +94,8 @@ export function SettingsPage({
     localStorage.setItem("autoLock", autoLock)
 
     toast({
-      title: t("settings.messages.settingsSaved"),
-      description: t("settings.messages.settingsUpdated"),
+      title: "Paramètres sauvegardés",
+      description: "Vos préférences ont été mises à jour",
     })
   }
 
@@ -111,8 +111,8 @@ export function SettingsPage({
       URL.revokeObjectURL(url)
 
       toast({
-        title: t("settings.messages.backupExported"),
-        description: t("settings.messages.walletBackedUp"),
+        title: "Sauvegarde exportée",
+        description: "Votre portefeuille a été sauvegardé",
       })
     }
   }
@@ -130,8 +130,8 @@ export function SettingsPage({
     localStorage.removeItem("autoLock")
 
     toast({
-      title: t("settings.messages.walletDeleted"),
-      description: t("settings.messages.dataCleared"),
+      title: "Portefeuille supprimé",
+      description: "Toutes les données ont été effacées",
     })
 
     // Redirect to onboarding after a short delay
@@ -151,18 +151,18 @@ export function SettingsPage({
         <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={() => onNavigate("dashboard")} className="bg-background dark:bg-background">
             <ArrowLeft className="h-5 w-5 mr-2" />
-            {t("common.back")}
+            {t.common.back}
           </Button>
-          <h1 className="text-2xl font-bold text-foreground">⚙️ {t("settings.title")}</h1>
+          <h1 className="text-2xl font-bold text-foreground">⚙️ {t.settings.title}</h1>
           <div className="w-20" />
         </div>
 
         <Tabs defaultValue="general" className="w-full">
           <TabsList className="grid w-full grid-cols-4 bg-muted dark:bg-muted">
-            <TabsTrigger value="general">{t("settings.tabs.general")}</TabsTrigger>
-            <TabsTrigger value="security">{t("settings.tabs.security")}</TabsTrigger>
-            <TabsTrigger value="notifications">{t("settings.tabs.notifications")}</TabsTrigger>
-            <TabsTrigger value="advanced">{t("settings.tabs.advanced")}</TabsTrigger>
+            <TabsTrigger value="general">{t.settings.tabs.general}</TabsTrigger>
+            <TabsTrigger value="security">{t.settings.tabs.security}</TabsTrigger>
+            <TabsTrigger value="notifications">{t.settings.tabs.notifications}</TabsTrigger>
+            <TabsTrigger value="advanced">{t.settings.tabs.advanced}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="space-y-6">
@@ -171,7 +171,7 @@ export function SettingsPage({
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center">
                   <Palette className="mr-2 h-5 w-5" />
-                  {t("settings.general.appearance")}
+                  {t.settings.general.appearance}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -185,19 +185,19 @@ export function SettingsPage({
                       <SelectItem value="light">
                         <div className="flex items-center">
                           <Sun className="h-4 w-4 mr-2" />
-                          {t("settings.general.theme.light")}
+                          {t.settings.general.theme.light}
                         </div>
                       </SelectItem>
                       <SelectItem value="dark">
                         <div className="flex items-center">
                           <Moon className="h-4 w-4 mr-2" />
-                          {t("settings.general.theme.dark")}
+                          {t.settings.general.theme.dark}
                         </div>
                       </SelectItem>
                       <SelectItem value="system">
                         <div className="flex items-center">
                           <Monitor className="h-4 w-4 mr-2" />
-                          {t("settings.general.theme.system")}
+                          {t.settings.general.theme.system}
                         </div>
                       </SelectItem>
                     </SelectContent>
@@ -211,12 +211,12 @@ export function SettingsPage({
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center">
                   <Languages className="mr-2 h-5 w-5" />
-                  {t("settings.general.language")}
+                  {t.settings.general.language}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-foreground">{t("settings.general.language")}</Label>
+                  <Label className="text-foreground">{t.settings.general.language}</Label>
                   <Select value={language} onValueChange={setLanguage}>
                     <SelectTrigger className="bg-background dark:bg-background">
                       <SelectValue />
@@ -227,7 +227,7 @@ export function SettingsPage({
                       <SelectItem value="de">🇩🇪 Deutsch</SelectItem>
                       <SelectItem value="it">🇮🇹 Italiano</SelectItem>
                       <SelectItem value="es">🇪🇸 Español</SelectItem>
-                      <SelectItem value="al">🇦🇱 Shqip</SelectItem>
+                      <SelectItem value="sq">🇦🇱 Shqip</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -239,12 +239,12 @@ export function SettingsPage({
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center">
                   <DollarSign className="mr-2 h-5 w-5" />
-                  {t("settings.general.currency")}
+                  {t.settings.general.currency}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-foreground">{t("settings.general.currency")}</Label>
+                  <Label className="text-foreground">{t.settings.general.currency}</Label>
                   <Select value={currency} onValueChange={setCurrency}>
                     <SelectTrigger className="bg-background dark:bg-background">
                       <SelectValue />
@@ -282,19 +282,19 @@ export function SettingsPage({
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center">
                   <Smartphone className="mr-2 h-5 w-5" />
-                  {t("settings.general.userType")}
+                  {t.settings.general.userType}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-foreground">{t("settings.general.userType")}</Label>
+                  <Label className="text-foreground">{t.settings.general.userType}</Label>
                   <Select value={userType || ""} onValueChange={(value) => onUserTypeChange(value as UserType)}>
                     <SelectTrigger className="bg-background dark:bg-background">
                       <SelectValue placeholder="Sélectionnez votre profil" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="client">👤 {t("settings.general.userTypes.individual")}</SelectItem>
-                      <SelectItem value="merchant">🏪 {t("settings.general.userTypes.merchant")}</SelectItem>
+                      <SelectItem value="client">👤 Particulier</SelectItem>
+                      <SelectItem value="merchant">🏪 Commerçant</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -303,7 +303,7 @@ export function SettingsPage({
 
             {/* Save Button */}
             <Button onClick={saveSettings} className="w-full">
-              {t("common.save")} les paramètres
+              {t.common.save} les paramètres
             </Button>
           </TabsContent>
 
@@ -313,51 +313,51 @@ export function SettingsPage({
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center">
                   <Shield className="mr-2 h-5 w-5" />
-                  {t("settings.security.title")}
+                  {t.settings.tabs.security}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-foreground">{t("settings.security.pin")}</Label>
-                    <p className="text-sm text-muted-foreground">{t("settings.security.changePinDescription")}</p>
+                    <Label className="text-foreground">{t.settings.security.pin}</Label>
+                    <p className="text-sm text-muted-foreground">Modifier votre code PIN</p>
                   </div>
                   <Button variant="outline" onClick={onChangePinRequest} className="bg-background dark:bg-background">
                     <Key className="mr-2 h-4 w-4" />
-                    {t("settings.security.changePin")}
+                    Changer PIN
                   </Button>
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-foreground">{t("settings.security.seedPhrase")}</Label>
-                    <p className="text-sm text-muted-foreground">{t("settings.security.seedPhraseDescription")}</p>
+                    <Label className="text-foreground">{t.settings.security.seedPhrase}</Label>
+                    <p className="text-sm text-muted-foreground">Afficher votre phrase secrète</p>
                   </div>
                   <Button variant="outline" onClick={onShowSeedPhrase} className="bg-background dark:bg-background">
                     <Eye className="mr-2 h-4 w-4" />
-                    {t("settings.security.viewPhrase")}
+                    Voir phrase
                   </Button>
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-foreground">{t("settings.security.biometrics")}</Label>
-                    <p className="text-sm text-muted-foreground">{t("settings.security.biometricsDescription")}</p>
+                    <Label className="text-foreground">{t.settings.security.biometrics}</Label>
+                    <p className="text-sm text-muted-foreground">Utiliser l'empreinte digitale</p>
                   </div>
                   <Switch checked={biometrics} onCheckedChange={setBiometrics} />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-foreground">{t("settings.security.autoLock")}</Label>
+                  <Label className="text-foreground">{t.settings.security.autoLock}</Label>
                   <Select value={autoLock} onValueChange={setAutoLock}>
                     <SelectTrigger className="bg-background dark:bg-background">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1">{t("settings.security.autoLockOptions.oneMinute")}</SelectItem>
-                      <SelectItem value="5">{t("settings.security.autoLockOptions.fiveMinutes")}</SelectItem>
-                      <SelectItem value="15">{t("settings.security.autoLockOptions.fifteenMinutes")}</SelectItem>
-                      <SelectItem value="30">{t("settings.security.autoLockOptions.thirtyMinutes")}</SelectItem>
-                      <SelectItem value="never">{t("settings.security.autoLockOptions.never")}</SelectItem>
+                      <SelectItem value="1">1 minute</SelectItem>
+                      <SelectItem value="5">5 minutes</SelectItem>
+                      <SelectItem value="15">15 minutes</SelectItem>
+                      <SelectItem value="30">30 minutes</SelectItem>
+                      <SelectItem value="never">Jamais</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -371,16 +371,14 @@ export function SettingsPage({
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center">
                   <Bell className="mr-2 h-5 w-5" />
-                  {t("settings.notifications.title")}
+                  {t.settings.tabs.notifications}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-foreground">{t("settings.notifications.priceAlerts")}</Label>
-                    <p className="text-sm text-muted-foreground">
-                      {t("settings.notifications.priceAlertsDescription")}
-                    </p>
+                    <Label className="text-foreground">Alertes de prix</Label>
+                    <p className="text-sm text-muted-foreground">Notifications des variations de prix</p>
                   </div>
                   <Switch
                     checked={notifications.priceAlerts}
@@ -389,10 +387,8 @@ export function SettingsPage({
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-foreground">{t("settings.notifications.transactions")}</Label>
-                    <p className="text-sm text-muted-foreground">
-                      {t("settings.notifications.transactionsDescription")}
-                    </p>
+                    <Label className="text-foreground">Transactions</Label>
+                    <p className="text-sm text-muted-foreground">Confirmations de transactions</p>
                   </div>
                   <Switch
                     checked={notifications.transactions}
@@ -401,8 +397,8 @@ export function SettingsPage({
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-foreground">{t("settings.notifications.security")}</Label>
-                    <p className="text-sm text-muted-foreground">{t("settings.notifications.securityDescription")}</p>
+                    <Label className="text-foreground">Sécurité</Label>
+                    <p className="text-sm text-muted-foreground">Alertes de sécurité</p>
                   </div>
                   <Switch
                     checked={notifications.security}
@@ -411,8 +407,8 @@ export function SettingsPage({
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-foreground">{t("settings.notifications.marketing")}</Label>
-                    <p className="text-sm text-muted-foreground">{t("settings.notifications.marketingDescription")}</p>
+                    <Label className="text-foreground">Marketing</Label>
+                    <p className="text-sm text-muted-foreground">Offres et promotions</p>
                   </div>
                   <Switch
                     checked={notifications.marketing}
@@ -429,24 +425,24 @@ export function SettingsPage({
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center">
                   <Download className="mr-2 h-5 w-5" />
-                  {t("settings.advanced.backupRecovery")}
+                  Sauvegarde et récupération
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-foreground">{t("settings.advanced.exportWallet")}</Label>
-                    <p className="text-sm text-muted-foreground">{t("settings.advanced.exportDescription")}</p>
+                    <Label className="text-foreground">Exporter le portefeuille</Label>
+                    <p className="text-sm text-muted-foreground">Sauvegarder vos données</p>
                   </div>
                   <Button variant="outline" onClick={exportWallet} className="bg-background dark:bg-background">
                     <Download className="mr-2 h-4 w-4" />
-                    {t("common.export")}
+                    {t.common.export}
                   </Button>
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-foreground">{t("settings.advanced.technicalSupport")}</Label>
-                    <p className="text-sm text-muted-foreground">{t("settings.advanced.supportDescription")}</p>
+                    <Label className="text-foreground">Support technique</Label>
+                    <p className="text-sm text-muted-foreground">Contacter l'assistance</p>
                   </div>
                   <Button variant="outline" onClick={onShowSupport} className="bg-background dark:bg-background">
                     <Globe className="mr-2 h-4 w-4" />
@@ -461,16 +457,16 @@ export function SettingsPage({
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center text-red-600 dark:text-red-400">
                   <Trash2 className="mr-2 h-5 w-5" />
-                  {t("settings.dangerZone.title")}
+                  {t.settings.dangerZone.title}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
                   <h4 className="font-semibold text-red-800 dark:text-red-400 mb-2">
-                    {t("settings.dangerZone.deleteWallet")}
+                    {t.settings.dangerZone.deleteWallet}
                   </h4>
                   <p className="text-sm text-red-700 dark:text-red-300 mb-4">
-                    {t("settings.dangerZone.deleteDescription")} Assurez-vous d'avoir sauvegardé votre phrase de
+                    {t.settings.dangerZone.deleteDescription} Assurez-vous d'avoir sauvegardé votre phrase de
                     récupération.
                   </p>
                   <AlertDialog>
@@ -483,7 +479,7 @@ export function SettingsPage({
                     <AlertDialogContent className="bg-card dark:bg-card">
                       <AlertDialogHeader>
                         <AlertDialogTitle className="text-foreground">
-                          {t("settings.dangerZone.deleteConfirm")}
+                          {t.settings.dangerZone.deleteConfirm}
                         </AlertDialogTitle>
                         <AlertDialogDescription className="text-muted-foreground">
                           Cette action ne peut pas être annulée. Cela supprimera définitivement votre portefeuille et
@@ -496,10 +492,10 @@ export function SettingsPage({
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel className="bg-background dark:bg-background">
-                          {t("common.cancel")}
+                          {t.common.cancel}
                         </AlertDialogCancel>
                         <AlertDialogAction onClick={deleteWallet} className="bg-red-600 hover:bg-red-700 text-white">
-                          {t("settings.dangerZone.deleteButton")}
+                          Oui, supprimer définitivement
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

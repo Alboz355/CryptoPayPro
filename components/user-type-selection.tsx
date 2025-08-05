@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { User, Store, Wallet, Shield, Zap, Globe } from "lucide-react"
+import { User, Store, Wallet, Shield, Zap, Globe } from 'lucide-react'
 import { useLanguage } from "@/contexts/language-context"
 import type { UserType } from "@/components/onboarding-page"
 
@@ -24,10 +24,12 @@ export function UserTypeSelection({ onUserTypeSelected }: UserTypeSelectionProps
               <Wallet className="h-8 w-8 text-white" />
             </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              {t("onboarding.title")}
+              {t.onboarding.title}
             </h1>
           </div>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">{t("onboarding.subtitle")}</p>
+          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+            {t.onboarding.subtitle}
+          </p>
           <div className="flex items-center justify-center gap-2 mt-6">
             <Badge variant="outline" className="bg-white/70 dark:bg-gray-800/70">
               🇨🇭 Développé en Suisse
@@ -44,10 +46,10 @@ export function UserTypeSelection({ onUserTypeSelected }: UserTypeSelectionProps
         {/* User Type Selection */}
         <div className="mb-8">
           <h2 className="text-2xl font-semibold text-center mb-8 text-gray-800 dark:text-gray-100">
-            {t("onboarding.userTypeSelection.title")}
+            {t.onboarding.userTypeSelection.title}
           </h2>
           <p className="text-center text-gray-600 dark:text-gray-400 mb-8">
-            {t("onboarding.userTypeSelection.subtitle")}
+            {t.onboarding.userTypeSelection.subtitle}
           </p>
         </div>
 
@@ -60,14 +62,14 @@ export function UserTypeSelection({ onUserTypeSelected }: UserTypeSelectionProps
                 <User className="h-10 w-10 text-blue-600 dark:text-blue-400" />
               </div>
               <CardTitle className="text-2xl text-gray-800 dark:text-gray-100">
-                {t("onboarding.userTypeSelection.client.title")}
+                {t.onboarding.userTypeSelection.client.title}
               </CardTitle>
             </CardHeader>
             <CardContent className="text-center space-y-6">
               <p className="text-gray-600 dark:text-gray-300 text-lg">
-                {t("onboarding.userTypeSelection.client.description")}
+                {t.onboarding.userTypeSelection.client.description}
               </p>
-
+              
               <div className="space-y-3">
                 <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
                   <Shield className="h-4 w-4 text-blue-500" />
@@ -100,14 +102,14 @@ export function UserTypeSelection({ onUserTypeSelected }: UserTypeSelectionProps
                 <Store className="h-10 w-10 text-purple-600 dark:text-purple-400" />
               </div>
               <CardTitle className="text-2xl text-gray-800 dark:text-gray-100">
-                {t("onboarding.userTypeSelection.merchant.title")}
+                {t.onboarding.userTypeSelection.merchant.title}
               </CardTitle>
             </CardHeader>
             <CardContent className="text-center space-y-6">
               <p className="text-gray-600 dark:text-gray-300 text-lg">
-                {t("onboarding.userTypeSelection.merchant.description")}
+                {t.onboarding.userTypeSelection.merchant.description}
               </p>
-
+              
               <div className="space-y-3">
                 <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
                   <Shield className="h-4 w-4 text-purple-500" />
