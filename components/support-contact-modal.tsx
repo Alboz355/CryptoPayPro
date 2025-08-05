@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { X, Mail, Send, CheckCircle, AlertCircle } from "lucide-react"
+import emailjs from "@emailjs/browser"
 
 interface SupportContactModalProps {
   isOpen: boolean
@@ -58,37 +59,33 @@ export function SupportContactModal({ isOpen, onClose }: SupportContactModalProp
     setError("")
 
     try {
-      // Créer le contenu de l'e-mail
-      const emailBody = `
-Nouvelle demande de support - Crypto Wallet App
+      // Configuration EmailJS avec vos vrais IDs
+      const serviceId = "service_0cen23r"
+      const templateId = "template_bg97ynr"
+      const publicKey = "yfMJVUvA62CKF7Div"
 
-Informations du contact:
-- Email: ${formData.email}
-- Catégorie: ${formData.category}
-- Priorité: ${formData.priority}
-- Objet: ${formData.subject}
+      // Paramètres du template
+      const templateParams = {
+        from_name: formData.email,
+        from_email: formData.email,
+        to_name: "Support Crypto Wallet",
+        to_email: "leartshabija@gmail.com",
+        subject: formData.subject,
+        category: categories.find((c) => c.value === formData.category)?.label || formData.category,
+        priority: priorities.find((p) => p.value === formData.priority)?.label || formData.priority,
+        message: formData.message,
+        date: new Date().toLocaleString("fr-CH"),
+        reply_to: formData.email,
+      }
 
-Message:
-${formData.message}
+      // Envoyer l'email via EmailJS
+      const response = await emailjs.send(serviceId, templateId, templateParams, publicKey)
 
----
-Envoyé depuis l'application Crypto Wallet
-Date: ${new Date().toLocaleString("fr-CH")}
-      `.trim()
-
-      // Créer le lien mailto
-      const mailtoLink = `mailto:leartshabija@gmail.com?subject=${encodeURIComponent(`[Support Crypto Wallet] ${formData.subject}`)}&body=${encodeURIComponent(emailBody)}`
-
-      // Ouvrir le client e-mail
-      window.location.href = mailtoLink
-
-      // Simuler un délai pour l'UX
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
+      console.log("Email envoyé avec succès:", response)
       setIsSubmitted(true)
     } catch (error) {
       console.error("Erreur lors de l'envoi:", error)
-      setError("Erreur lors de l'ouverture du client e-mail. Veuillez réessayer.")
+      setError("Erreur lors de l'envoi de l'email. Veuillez vérifier votre configuration EmailJS ou réessayer.")
     } finally {
       setIsSubmitting(false)
     }
@@ -237,10 +234,10 @@ Date: ${new Date().toLocaleString("fr-CH")}
                 <div className="text-sm text-blue-800 dark:text-blue-200">
                   <p className="font-medium mb-2">📧 Comment ça marche :</p>
                   <ul className="space-y-1">
-                    <li>• Votre client e-mail s'ouvrira automatiquement</li>
-                    <li>• L'e-mail sera pré-rempli avec vos informations</li>
-                    <li>• Envoyez l'e-mail depuis votre client habituel</li>
+                    <li>• Votre message sera envoyé directement par email</li>
+                    <li>• Vous recevrez une confirmation une fois envoyé</li>
                     <li>• Nous vous répondrons dans les plus brefs délais</li>
+                    <li>• L'email sera envoyé à leartshabija@gmail.com</li>
                   </ul>
                 </div>
               </div>
@@ -254,7 +251,7 @@ Date: ${new Date().toLocaleString("fr-CH")}
                   {isSubmitting ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                      Ouverture...
+                      Envoi en cours...
                     </>
                   ) : (
                     <>
@@ -274,15 +271,15 @@ Date: ${new Date().toLocaleString("fr-CH")}
 
               <div>
                 <h3 className="text-xl font-bold text-green-800 dark:text-green-200 mb-2">
-                  E-mail préparé avec succès !
+                  Email envoyé avec succès !
                 </h3>
                 <p className="text-green-700 dark:text-green-300 mb-4">
-                  Votre client e-mail devrait s'être ouvert avec le message pré-rempli.
+                  Votre message a été envoyé à notre équipe de support.
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Si votre client e-mail ne s'est pas ouvert, vous pouvez envoyer manuellement un e-mail à :
+                  Nous vous répondrons dans les plus brefs délais à l'adresse :
                   <br />
-                  <strong>leartshabija@gmail.com</strong>
+                  <strong>{formData.email}</strong>
                 </p>
               </div>
 
