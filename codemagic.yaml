@@ -1,45 +1,50 @@
-# Fichier : codemagic.yaml
+# Placez ce fichier à la racine de votre projet sous le nom : codemagic.yaml
 
 workflows:
-  ios-app-sideload:
-    name: iOS App Build (pour Sideloadly)
+  ios-app-build:
+    name: Construire l'application iOS
+    # --- Configuration de la machine virtuelle (un Mac) ---
     environment:
+      node: 20
       xcode: latest
-      node: latest
+      cocoapods: default
+    # --- Scripts à exécuter ---
     scripts:
-      - name: Installer les dépendances
-        script: | 
-          npm install
-      - name: Construire l'application web
-        script: | 
-          npm run build
-      - name: Synchroniser avec le projet iOS natif
-        script: | 
-          npx cap sync ios
-      - name: Construire l'application (.app) sans signature
-        script: | 
-          xcodebuild build \
-            -workspace "$CM_BUILD_DIR/ios/App/App.xcworkspace" \
-            -scheme App \
-            -configuration Debug \
-            -sdk iphoneos \
-            -derivedDataPath "$CM_BUILD_DIR/build/ios/derived_data" \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO
-      - name: Créer le fichier .ipa manuellement
-        script: | 
-          # On trouve le fichier .app qui vient d'être créé
-          APP_PATH=$(find $CM_BUILD_DIR/build/ios/derived_data -name "*.app" | head -n 1)
+      - name: Installer les dépendances du projet
+        script: npm install
+
+      - name: Construire la version web de l'application
+        script: npm run build
+
+      - name: Intégrer Capacitor pour créer le projet iOS
+        script: |
+          npm install @capacitor/core @capacitor/cli
+          # Remplacez "out" par ".next" si votre dossier de build est différent
+          npx cap init "CryptoPayPro" "com.cryptopaypro.app" --web-dir "out"
+          npx cap add ios
+
+      - name: Installer les dépendances natives (pods)
+        script: |
+          cd ios/App && pod install
+
+      - name: 🚨 ÉTAPE DE SIGNATURE (BLOQUANTE SANS COMPTE PAYANT) 🚨
+        script: |
+          # Cette étape initialise le "keychain" de macOS sur le serveur distant.
+          keychain initialize
           
-          # On crée le dossier nécessaire
-          mkdir -p "$CM_BUILD_DIR/build/ios/ipa/Payload"
+          # Ici, Codemagic essaie de récupérer les fichiers .p12 et .mobileprovision
+          # que vous êtes censé avoir uploadés dans leurs paramètres.
+          # Ces fichiers ne peuvent être obtenus qu'avec un compte développeur PAYANT.
+          # SANS CES FICHIERS, LA SUITE ÉCHOUERA.
+          keychain add-certificates --certificate "$CM_CERTIFICATE" --certificate-password "$CM_CERTIFICATE_PASSWORD"
+          xcode-project use-profiles
+
+      - name: Construire le fichier .ipa
+        script: |
+          xcode-project build-ipa \
+            --workspace "ios/App/App.xcworkspace" \
+            --scheme "App"
           
-          # On copie l'application dans ce dossier
-          cp -R "$APP_PATH" "$CM_BUILD_DIR/build/ios/ipa/Payload/"
-          
-          # On se déplace dans le dossier et on compresse pour créer le .ipa
-          cd "$CM_BUILD_DIR/build/ios/ipa"
-          zip -r "CryptoPayPro.ipa" "Payload"
+    # --- Où trouver le fichier .ipa une fois la construction terminée ---
     artifacts:
-      # On dit à Codemagic où trouver le fichier .ipa final
       - build/ios/ipa/*.ipa
