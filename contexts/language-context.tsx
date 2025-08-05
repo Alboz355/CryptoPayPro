@@ -20,18 +20,22 @@ export function LanguageProvider({ children }: LanguageProviderProps) {
   const [t, setT] = useState<Translations>(getTranslation('fr'))
 
   useEffect(() => {
-    // Load saved language from localStorage
-    const savedLanguage = localStorage.getItem('app-language') as Language
-    if (savedLanguage && (savedLanguage === 'fr' || savedLanguage === 'en')) {
-      setLanguageState(savedLanguage)
-      setT(getTranslation(savedLanguage))
+    // Load saved language from localStorage only on client side
+    if (typeof window !== 'undefined') {
+      const savedLanguage = localStorage.getItem('app-language') as Language
+      if (savedLanguage && (savedLanguage === 'fr' || savedLanguage === 'en')) {
+        setLanguageState(savedLanguage)
+        setT(getTranslation(savedLanguage))
+      }
     }
   }, [])
 
   const setLanguage = (newLanguage: Language) => {
     setLanguageState(newLanguage)
     setT(getTranslation(newLanguage))
-    localStorage.setItem('app-language', newLanguage)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('app-language', newLanguage)
+    }
   }
 
   return (
