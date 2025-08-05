@@ -1,272 +1,417 @@
 "use client"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Wallet, Eye, EyeOff, Copy, Check, AlertTriangle } from "lucide-react"
-import { createWallet } from "@/lib/wallet-utils"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Wallet, Download, Upload, User, Store, Shield, Key, AlertCircle, CheckCircle, Smartphone, Globe } from 'lucide-react'
+import { UserTypeSelection } from "@/components/user-type-selection"
+import { generateWallet } from "@/lib/wallet-utils"
+import { useLanguage } from "@/contexts/language-context"
+
+export type UserType = "client" | "merchant"
 
 interface OnboardingPageProps {
-  onComplete: (walletData: any) => void
+  onWalletCreated: (wallet: any, userType: UserType) => void
 }
 
-export function OnboardingPage({ onComplete }: OnboardingPageProps) {
-  const [step, setStep] = useState(1)
-  const [walletData, setWalletData] = useState<any>(null)
-  const [showSeedPhrase, setShowSeedPhrase] = useState(false)
-  const [seedPhraseConfirmed, setSeedPhraseConfirmed] = useState(false)
+interface WalletData {
+  mnemonic: string
+  addresses: {
+    bitcoin: string
+    ethereum: string
+    algorand: string
+  }
+  balances: {
+    bitcoin: string
+    ethereum: string
+    algorand: string
+  }
+  accounts: any[]
+}
+
+export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
+  const { t } = useLanguage()
+  const [currentStep, setCurrentStep] = useState<"user-type" | "wallet-setup">("user-type")
+  const [selectedUserType, setSelectedUserType] = useState<UserType | null>(null)
+  const [walletAction, setWalletAction] = useState<"create" | "import" | null>(null)
   const [importSeedPhrase, setImportSeedPhrase] = useState("")
-  const [isImporting, setIsImporting] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+
+  const handleUserTypeSelected = (userType: UserType) => {
+    setSelectedUserType(userType)
+    setCurrentStep("wallet-setup")
+  }
 
   const handleCreateWallet = async () => {
+    if (!selectedUserType) return
+
+    setIsCreating(true)
+    setError(null)
+    setSuccess(null)
+
     try {
-      const wallet = createWallet()
-      setWalletData(wallet)
-      setStep(2)
-    } catch (error) {
-      console.error("Error creating wallet:", error)
-    }
-  }
+      // Simulation de la création du portefeuille
+      await new Promise((resolve) => setTimeout(resolve, 2000))
 
-  const handleImportWallet = () => {
-    setIsImporting(true)
-    setStep(2)
-  }
+      const wallet = generateWallet()
 
-  const handleCopySeedPhrase = async () => {
-    if (walletData?.mnemonic) {
-      await navigator.clipboard.writeText(walletData.mnemonic)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
-  }
-
-  const handleConfirmSeedPhrase = () => {
-    setSeedPhraseConfirmed(true)
-    setStep(3)
-  }
-
-  const handleImportConfirm = () => {
-    if (importSeedPhrase.trim()) {
-      // In a real app, you would validate and import the seed phrase
-      const importedWallet = {
-        mnemonic: importSeedPhrase.trim(),
-        addresses: {
-          bitcoin: "1ImportedBitcoinAddress",
-          ethereum: "0xImportedEthereumAddress",
-          algorand: "IMPORTEDALGORANDADDRESS",
-        },
+      const walletData: WalletData = {
+        mnemonic: wallet.mnemonic,
+        addresses: wallet.addresses,
         balances: {
-          bitcoin: 0,
-          ethereum: 0,
-          algorand: 0,
+          bitcoin: "0.00000000",
+          ethereum: "0.000000000000000000",
+          algorand: "0.000000",
         },
+        accounts: [
+          {
+            id: "btc-account",
+            name: "Bitcoin Principal",
+            address: wallet.addresses.bitcoin,
+            balance: "0.00000000",
+            currency: "BTC",
+          },
+          {
+            id: "eth-account",
+            name: "Ethereum Principal",
+            address: wallet.addresses.ethereum,
+            balance: "0.000000000000000000",
+            currency: "ETH",
+          },
+          {
+            id: "algo-account",
+            name: "Algorand Principal",
+            address: wallet.addresses.algorand,
+            balance: "0.000000",
+            currency: "ALGO",
+          },
+        ],
       }
-      setWalletData(importedWallet)
-      setStep(3)
+
+      setSuccess("Portefeuille créé avec succès !")
+      setTimeout(() => {
+        onWalletCreated(walletData, selectedUserType)
+      }, 1000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la création du portefeuille")
+    } finally {
+      setIsCreating(false)
     }
   }
 
-  const handleComplete = () => {
-    onComplete(walletData)
+  const handleImportWallet = async () => {
+    if (!selectedUserType || !importSeedPhrase.trim()) {
+      setError("Veuillez saisir une phrase de récupération valide")
+      return
+    }
+
+    setIsCreating(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      // Validation de la seed phrase
+      const words = importSeedPhrase.trim().split(/\s+/)
+      if (words.length !== 12 && words.length !== 24) {
+        throw new Error("La phrase de récupération doit contenir 12 ou 24 mots")
+      }
+
+      // Simulation de l'import
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+
+      const wallet = generateWallet()
+
+      const walletData: WalletData = {
+        mnemonic: importSeedPhrase,
+        addresses: wallet.addresses,
+        balances: {
+          bitcoin: "0.00000000",
+          ethereum: "0.000000000000000000",
+          algorand: "0.000000",
+        },
+        accounts: [
+          {
+            id: "btc-account",
+            name: "Bitcoin Principal",
+            address: wallet.addresses.bitcoin,
+            balance: "0.00000000",
+            currency: "BTC",
+          },
+          {
+            id: "eth-account",
+            name: "Ethereum Principal",
+            address: wallet.addresses.ethereum,
+            balance: "0.000000000000000000",
+            currency: "ETH",
+          },
+          {
+            id: "algo-account",
+            name: "Algorand Principal",
+            address: wallet.addresses.algorand,
+            balance: "0.000000",
+            currency: "ALGO",
+          },
+        ],
+      }
+
+      setSuccess("Portefeuille importé avec succès !")
+      setTimeout(() => {
+        onWalletCreated(walletData, selectedUserType)
+      }, 1000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de l'import du portefeuille")
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const validateSeedPhrase = (phrase: string): boolean => {
+    const words = phrase.trim().split(/\s+/)
+    return words.length === 12 || words.length === 24
+  }
+
+  if (currentStep === "user-type") {
+    return <UserTypeSelection onUserTypeSelected={handleUserTypeSelected} />
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 p-4 flex items-center justify-center">
-      <div className="w-full max-w-2xl">
-        <Card className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-slate-200 dark:border-slate-700 shadow-2xl">
-          <CardHeader className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 dark:from-purple-500 dark:to-pink-600 rounded-full mb-4 mx-auto">
-              <Wallet className="w-8 h-8 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-4xl">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <Wallet className="h-8 w-8 text-white" />
             </div>
-            <CardTitle className="text-2xl font-bold text-slate-900 dark:text-white">
-              {step === 1 && "Configuration du Portefeuille"}
-              {step === 2 && (isImporting ? "Importer un Portefeuille" : "Phrase de Récupération")}
-              {step === 3 && "Configuration Terminée"}
-            </CardTitle>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+              {t.onboarding.walletSetup.title}
+            </h1>
+          </div>
+          <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto text-lg">
+            {selectedUserType === "client"
+              ? "Créez ou importez votre portefeuille crypto personnel pour commencer à gérer vos actifs numériques en toute sécurité."
+              : "Configurez votre portefeuille professionnel pour accepter les paiements crypto et gérer votre activité commerciale."}
+          </p>
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <Badge variant="outline" className="bg-white/70 dark:bg-gray-800/70 border-emerald-200 dark:border-emerald-700">
+              {selectedUserType === "client" ? (
+                <>
+                  <User className="h-4 w-4 mr-1 text-emerald-600" />
+                  <span className="text-emerald-700 dark:text-emerald-300">Mode Client</span>
+                </>
+              ) : (
+                <>
+                  <Store className="h-4 w-4 mr-1 text-teal-600" />
+                  <span className="text-teal-700 dark:text-teal-300">Mode Commerçant</span>
+                </>
+              )}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <Card className="shadow-2xl border-0 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl">
+          <CardHeader className="text-center pb-6 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-gray-700 dark:to-gray-700 rounded-t-lg">
+            <CardTitle className="text-2xl text-gray-800 dark:text-gray-100">Choisissez votre méthode</CardTitle>
           </CardHeader>
+          <CardContent className="p-8">
+            <Tabs
+              value={walletAction || "create"}
+              onValueChange={(value) => setWalletAction(value as "create" | "import")}
+            >
+              <TabsList className="grid w-full grid-cols-2 mb-8 bg-gray-100 dark:bg-gray-700">
+                <TabsTrigger value="create" className="flex items-center gap-2 data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
+                  <Download className="h-4 w-4" />
+                  {t.onboarding.walletSetup.create.title}
+                </TabsTrigger>
+                <TabsTrigger value="import" className="flex items-center gap-2 data-[state=active]:bg-teal-500 data-[state=active]:text-white">
+                  <Upload className="h-4 w-4" />
+                  {t.onboarding.walletSetup.import.title}
+                </TabsTrigger>
+              </TabsList>
 
-          <CardContent className="space-y-6">
-            {step === 1 && (
-              <div className="space-y-4">
-                <p className="text-center text-slate-600 dark:text-slate-300">
-                  Choisissez comment vous souhaitez configurer votre portefeuille crypto.
-                </p>
-
-                <div className="grid gap-4">
-                  <Button
-                    onClick={handleCreateWallet}
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white p-6 h-auto"
-                    size="lg"
-                  >
-                    <div className="text-left">
-                      <div className="font-semibold">Créer un nouveau portefeuille</div>
-                      <div className="text-sm opacity-90">Générer une nouvelle phrase de récupération</div>
-                    </div>
-                  </Button>
-
-                  <Button
-                    onClick={handleImportWallet}
-                    variant="outline"
-                    className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 p-6 h-auto bg-transparent"
-                    size="lg"
-                  >
-                    <div className="text-left">
-                      <div className="font-semibold">Importer un portefeuille existant</div>
-                      <div className="text-sm opacity-70">Utiliser une phrase de récupération existante</div>
-                    </div>
-                  </Button>
+              <TabsContent value="create" className="space-y-6">
+                <div className="text-center space-y-4">
+                  <div className="w-24 h-24 bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/30 dark:to-emerald-800/30 rounded-full flex items-center justify-center mx-auto shadow-lg">
+                    <Key className="h-12 w-12 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100">{t.onboarding.walletSetup.create.title}</h3>
+                    <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
+                      {t.onboarding.walletSetup.create.description}. Vous recevrez une
+                      phrase de 12 mots à conserver précieusement.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )}
 
-            {step === 2 && !isImporting && walletData && (
-              <div className="space-y-6">
-                <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <div className="grid md:grid-cols-3 gap-4 my-8">
+                  <div className="text-center p-6 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-xl border border-emerald-200 dark:border-emerald-700">
+                    <Shield className="h-10 w-10 text-emerald-600 dark:text-emerald-400 mx-auto mb-3" />
+                    <h4 className="font-semibold text-emerald-800 dark:text-emerald-200">{t.onboarding.walletSetup.features.secure}</h4>
+                    <p className="text-sm text-emerald-700 dark:text-emerald-300">Chiffrement de niveau militaire</p>
+                  </div>
+                  <div className="text-center p-6 bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/20 dark:to-teal-800/20 rounded-xl border border-teal-200 dark:border-teal-700">
+                    <Smartphone className="h-10 w-10 text-teal-600 dark:text-teal-400 mx-auto mb-3" />
+                    <h4 className="font-semibold text-teal-800 dark:text-teal-200">{t.onboarding.walletSetup.features.multiPlatform}</h4>
+                    <p className="text-sm text-teal-700 dark:text-teal-300">Compatible tous appareils</p>
+                  </div>
+                  <div className="text-center p-6 bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-900/20 dark:to-cyan-800/20 rounded-xl border border-cyan-200 dark:border-cyan-700">
+                    <Globe className="h-10 w-10 text-cyan-600 dark:text-cyan-400 mx-auto mb-3" />
+                    <h4 className="font-semibold text-cyan-800 dark:text-cyan-200">{t.onboarding.walletSetup.features.multiCrypto}</h4>
+                    <p className="text-sm text-cyan-700 dark:text-cyan-300">Bitcoin, Ethereum, Algorand</p>
+                  </div>
+                </div>
+
+                <Alert className="border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 dark:border-amber-700">
+                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                   <AlertDescription className="text-amber-800 dark:text-amber-200">
-                    <strong>Important :</strong> Sauvegardez cette phrase de récupération en lieu sûr. Elle est le seul
-                    moyen de récupérer votre portefeuille.
+                    <strong>Important :</strong> Votre phrase de récupération sera affichée une seule fois. Assurez-vous
+                    de la noter et de la conserver en lieu sûr.
                   </AlertDescription>
                 </Alert>
 
-                <div className="space-y-4">
-                  <Label className="text-slate-700 dark:text-slate-300">Phrase de récupération (12 mots)</Label>
-                  <div className="relative">
-                    <Textarea
-                      value={walletData.mnemonic}
-                      readOnly
-                      className={`min-h-[100px] font-mono text-sm bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-600 ${
-                        showSeedPhrase ? "" : "blur-sm"
-                      }`}
-                    />
-                    {!showSeedPhrase && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Button
-                          onClick={() => setShowSeedPhrase(true)}
-                          variant="outline"
-                          size="sm"
-                          className="bg-white dark:bg-slate-800"
-                        >
-                          <Eye className="w-4 h-4 mr-2" />
-                          Afficher la phrase
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-
-                  {showSeedPhrase && (
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={handleCopySeedPhrase}
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 bg-transparent"
-                      >
-                        {copied ? (
-                          <>
-                            <Check className="w-4 h-4 mr-2" />
-                            Copié !
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-4 h-4 mr-2" />
-                            Copier
-                          </>
-                        )}
-                      </Button>
-                      <Button onClick={() => setShowSeedPhrase(false)} variant="outline" size="sm">
-                        <EyeOff className="w-4 h-4 mr-2" />
-                        Masquer
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex gap-4">
-                  <Button onClick={() => setStep(1)} variant="outline" className="flex-1">
-                    Retour
-                  </Button>
-                  <Button
-                    onClick={handleConfirmSeedPhrase}
-                    disabled={!showSeedPhrase}
-                    className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
-                  >
-                    J'ai sauvegardé ma phrase
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {step === 2 && isImporting && (
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <Label htmlFor="seedPhrase" className="text-slate-700 dark:text-slate-300">
-                    Phrase de récupération (12 ou 24 mots)
-                  </Label>
-                  <Textarea
-                    id="seedPhrase"
-                    placeholder="Entrez votre phrase de récupération séparée par des espaces..."
-                    value={importSeedPhrase}
-                    onChange={(e) => setImportSeedPhrase(e.target.value)}
-                    className="min-h-[100px] font-mono text-sm bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-600"
-                  />
-                </div>
-
-                <div className="flex gap-4">
-                  <Button onClick={() => setStep(1)} variant="outline" className="flex-1">
-                    Retour
-                  </Button>
-                  <Button
-                    onClick={handleImportConfirm}
-                    disabled={!importSeedPhrase.trim()}
-                    className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
-                  >
-                    Importer le portefeuille
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {step === 3 && (
-              <div className="space-y-6 text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto">
-                  <Check className="w-8 h-8 text-white" />
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
-                    Portefeuille configuré avec succès !
-                  </h3>
-                  <p className="text-slate-600 dark:text-slate-300">
-                    Votre portefeuille crypto est maintenant prêt à être utilisé.
-                  </p>
-                </div>
-
-                <div className="bg-slate-100 dark:bg-slate-700 rounded-lg p-4 space-y-2">
-                  <div className="text-sm text-slate-600 dark:text-slate-400">Adresses générées :</div>
-                  <div className="space-y-1 text-xs font-mono">
-                    <div>BTC: {walletData?.addresses?.bitcoin}</div>
-                    <div>ETH: {walletData?.addresses?.ethereum}</div>
-                    <div>ALGO: {walletData?.addresses?.algorand}</div>
-                  </div>
-                </div>
-
                 <Button
-                  onClick={handleComplete}
-                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
-                  size="lg"
+                  onClick={handleCreateWallet}
+                  disabled={isCreating}
+                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
                 >
-                  Accéder au portefeuille
+                  {isCreating ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      {t.onboarding.walletSetup.create.creating}
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-5 w-5 mr-2" />
+                      {t.onboarding.walletSetup.create.button}
+                    </>
+                  )}
                 </Button>
-              </div>
+              </TabsContent>
+
+              <TabsContent value="import" className="space-y-6">
+                <div className="text-center space-y-4">
+                  <div className="w-24 h-24 bg-gradient-to-br from-teal-100 to-teal-200 dark:from-teal-900/30 dark:to-teal-800/30 rounded-full flex items-center justify-center mx-auto shadow-lg">
+                    <Upload className="h-12 w-12 text-teal-600 dark:text-teal-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100">{t.onboarding.walletSetup.import.title}</h3>
+                    <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
+                      {t.onboarding.walletSetup.import.description}.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="seedPhrase" className="text-base font-medium text-gray-700 dark:text-gray-200">
+                      Phrase de récupération
+                    </Label>
+                    <Textarea
+                      id="seedPhrase"
+                      placeholder={t.onboarding.walletSetup.import.placeholder}
+                      value={importSeedPhrase}
+                      onChange={(e) => setImportSeedPhrase(e.target.value)}
+                      className="mt-2 min-h-[120px] resize-none bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                      disabled={isCreating}
+                    />
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {
+                          importSeedPhrase
+                            .trim()
+                            .split(/\s+/)
+                            .filter((word) => word.length > 0).length
+                        }{" "}
+                        mots saisis
+                      </p>
+                      {importSeedPhrase.trim() && (
+                        <div className="flex items-center gap-1">
+                          {validateSeedPhrase(importSeedPhrase) ? (
+                            <>
+                              <CheckCircle className="h-4 w-4 text-emerald-600" />
+                              <span className="text-sm text-emerald-600">Format valide</span>
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="h-4 w-4 text-red-600" />
+                              <span className="text-sm text-red-600">12 ou 24 mots requis</span>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <Alert className="border-red-200 bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 dark:border-red-700">
+                    <Shield className="h-4 w-4 text-red-600 dark:text-red-400" />
+                    <AlertDescription className="text-red-800 dark:text-red-200">
+                      <strong>Sécurité :</strong> Ne partagez jamais votre phrase de récupération. Assurez-vous d'être
+                      dans un environnement sécurisé.
+                    </AlertDescription>
+                  </Alert>
+
+                  <Button
+                    onClick={handleImportWallet}
+                    disabled={isCreating || !validateSeedPhrase(importSeedPhrase)}
+                    className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+                  >
+                    {isCreating ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                        {t.onboarding.walletSetup.import.importing}
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-5 w-5 mr-2" />
+                        {t.onboarding.walletSetup.import.button}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            {/* Messages d'état */}
+            {error && (
+              <Alert className="mt-6 border-red-200 bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 dark:border-red-700">
+                <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                <AlertDescription className="text-red-800 dark:text-red-200">{error}</AlertDescription>
+              </Alert>
             )}
+
+            {success && (
+              <Alert className="mt-6 border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 dark:border-emerald-700">
+                <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <AlertDescription className="text-emerald-800 dark:text-emerald-200">{success}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Bouton retour */}
+            <div className="mt-8 text-center">
+              <Button
+                variant="outline"
+                onClick={() => setCurrentStep("user-type")}
+                disabled={isCreating}
+                className="bg-white/70 dark:bg-gray-700/70 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
+              >
+                {t.common.back} - Changer de profil utilisateur
+              </Button>
+            </div>
           </CardContent>
         </Card>
+
+        {/* Footer */}
+        <div className="text-center mt-8 text-sm text-gray-500 dark:text-gray-400">
+          <p>🔒 Vos données sont chiffrées et stockées localement sur votre appareil</p>
+        </div>
       </div>
     </div>
   )
