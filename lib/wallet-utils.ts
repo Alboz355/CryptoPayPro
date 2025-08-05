@@ -265,7 +265,7 @@ export function simulateReceiveTransaction(crypto: "bitcoin" | "ethereum" | "alg
   })
 }
 
-// Génération de portefeuille avec seed phrase
+// Génération de portefeuille avec seed phrase - VERSION SIMPLIFIÉE
 export function generateWallet(): { mnemonic: string; addresses: WalletAddresses } {
   // Générer une seed phrase de 12 mots (simulation)
   const words = [
@@ -289,6 +289,36 @@ export function generateWallet(): { mnemonic: string; addresses: WalletAddresses
     "acquire",
     "across",
     "act",
+    "action",
+    "actor",
+    "actress",
+    "actual",
+    "adapt",
+    "add",
+    "addict",
+    "address",
+    "adjust",
+    "admit",
+    "adult",
+    "advance",
+    "advice",
+    "aerobic",
+    "affair",
+    "afford",
+    "afraid",
+    "again",
+    "against",
+    "age",
+    "agent",
+    "agree",
+    "ahead",
+    "aim",
+    "air",
+    "airport",
+    "aisle",
+    "alarm",
+    "album",
+    "alcohol",
   ]
 
   const mnemonic = Array.from({ length: 12 }, () => words[Math.floor(Math.random() * words.length)]).join(" ")

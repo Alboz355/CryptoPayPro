@@ -8,6 +8,10 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Printer,
   Wifi,
@@ -20,6 +24,8 @@ import {
   FileText,
   Settings,
   Zap,
+  Receipt,
+  Save,
 } from "lucide-react"
 
 interface TPEPrinterTestModalProps {
@@ -41,6 +47,21 @@ interface TestResult {
   details?: string
 }
 
+interface ReceiptSettings {
+  header: string
+  footer: string
+  includeLogo: boolean
+  includeQR: boolean
+  includeDate: boolean
+  includeTime: boolean
+  includeAddress: boolean
+  includePhone: boolean
+  includeEmail: boolean
+  includeVAT: boolean
+  paperWidth: "58mm" | "80mm"
+  fontSize: "small" | "medium" | "large"
+}
+
 export function TPEPrinterTestModal({ isOpen, onClose }: TPEPrinterTestModalProps) {
   const [isTestingConnection, setIsTestingConnection] = useState(false)
   const [isPrinting, setIsPrinting] = useState(false)
@@ -53,6 +74,20 @@ export function TPEPrinterTestModal({ isOpen, onClose }: TPEPrinterTestModalProp
   })
   const [testResults, setTestResults] = useState<TestResult[]>([])
   const [connectionType, setConnectionType] = useState<"usb" | "wifi" | "bluetooth">("usb")
+  const [receiptSettings, setReceiptSettings] = useState<ReceiptSettings>({
+    header: "CRYPTO STORE LAUSANNE",
+    footer: "Merci de votre visite !\nÀ bientôt !",
+    includeLogo: true,
+    includeQR: true,
+    includeDate: true,
+    includeTime: true,
+    includeAddress: true,
+    includePhone: true,
+    includeEmail: false,
+    includeVAT: true,
+    paperWidth: "58mm",
+    fontSize: "medium",
+  })
 
   const runConnectionTest = async () => {
     setIsTestingConnection(true)
@@ -146,7 +181,7 @@ export function TPEPrinterTestModal({ isOpen, onClose }: TPEPrinterTestModalProp
     setIsTestingConnection(false)
   }
 
-  const printTestPage = async () => {
+  const printTestReceipt = async () => {
     if (printerStatus.connection !== "connected") {
       alert("Veuillez d'abord tester la connexion de l'imprimante.")
       return
@@ -158,7 +193,12 @@ export function TPEPrinterTestModal({ isOpen, onClose }: TPEPrinterTestModalProp
     await new Promise((resolve) => setTimeout(resolve, 3000))
 
     setIsPrinting(false)
-    alert("Page de test envoyée à l'imprimante !")
+    alert("Ticket de test envoyé à l'imprimante !")
+  }
+
+  const saveReceiptSettings = () => {
+    localStorage.setItem("receipt-settings", JSON.stringify(receiptSettings))
+    alert("Paramètres de ticket sauvegardés !")
   }
 
   const getStatusIcon = (status: string) => {
@@ -192,20 +232,20 @@ export function TPEPrinterTestModal({ isOpen, onClose }: TPEPrinterTestModalProp
       case "ok":
       case "normal":
       case "installed":
-        return "bg-green-100 text-green-800 dark:bg-green-900/20"
+        return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
       case "warning":
       case "low":
       case "high":
       case "outdated":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20"
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
       case "error":
       case "disconnected":
       case "empty":
       case "critical":
       case "missing":
-        return "bg-red-100 text-red-800 dark:bg-red-900/20"
+        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
     }
   }
 
@@ -229,34 +269,119 @@ export function TPEPrinterTestModal({ isOpen, onClose }: TPEPrinterTestModalProp
     return labels[status] || status
   }
 
+  const generateReceiptPreview = () => {
+    const width = receiptSettings.paperWidth === "58mm" ? 32 : 42
+    const separator = "=".repeat(width)
+    const spacer = "-".repeat(width)
+
+    let preview = ""
+
+    // En-tête
+    if (receiptSettings.header) {
+      preview +=
+        receiptSettings.header
+          .split("\n")
+          .map((line) =>
+            line.length > width ? line.substring(0, width) : line.padStart((width + line.length) / 2).padEnd(width),
+          )
+          .join("\n") + "\n"
+    }
+
+    preview += separator + "\n\n"
+
+    // Informations du commerce
+    if (receiptSettings.includeAddress) {
+      preview += "Rue de la Paix 15\n1003 Lausanne\n"
+    }
+    if (receiptSettings.includePhone) {
+      preview += "Tél: +41 21 123 45 67\n"
+    }
+    if (receiptSettings.includeEmail) {
+      preview += "Email: contact@cryptostore.ch\n"
+    }
+    if (receiptSettings.includeVAT) {
+      preview += "TVA: CHE-123.456.789\n"
+    }
+
+    preview += "\n" + spacer + "\n\n"
+
+    // Date et heure
+    if (receiptSettings.includeDate || receiptSettings.includeTime) {
+      const now = new Date()
+      if (receiptSettings.includeDate) {
+        preview += `Date: ${now.toLocaleDateString("fr-CH")}\n`
+      }
+      if (receiptSettings.includeTime) {
+        preview += `Heure: ${now.toLocaleTimeString("fr-CH")}\n`
+      }
+      preview += "\n"
+    }
+
+    // Transaction exemple
+    preview += "TRANSACTION TEST\n"
+    preview += spacer + "\n"
+    preview += "Achat Bitcoin\n"
+    preview += "Montant:              150.00 CHF\n"
+    preview += "TVA (7.7%):            11.55 CHF\n"
+    preview += "Total:                161.55 CHF\n"
+    preview += spacer + "\n\n"
+
+    // Code QR
+    if (receiptSettings.includeQR) {
+      preview += "QR Code de vérification:\n"
+      preview += "█████████████████████\n"
+      preview += "█   ██ ▄▄▄▄▄ ██   █\n"
+      preview += "█ ▄ ██ █   █ ██▄▄ █\n"
+      preview += "█ ███▄ ▄▄▄▄▄ ▄███ █\n"
+      preview += "█████████████████████\n\n"
+    }
+
+    // Pied de page
+    if (receiptSettings.footer) {
+      preview +=
+        receiptSettings.footer
+          .split("\n")
+          .map((line) =>
+            line.length > width ? line.substring(0, width) : line.padStart((width + line.length) / 2).padEnd(width),
+          )
+          .join("\n") + "\n"
+    }
+
+    preview += "\n" + separator + "\n"
+    preview += "Ticket de test - " + new Date().toLocaleString("fr-CH")
+
+    return preview
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-card dark:bg-card">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-foreground">
             <Printer className="h-5 w-5" />
-            Test d'Imprimante TPE
+            Configuration et Test d'Imprimante
           </DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="test" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="test">Test de Connexion</TabsTrigger>
-            <TabsTrigger value="status">État de l'Imprimante</TabsTrigger>
-            <TabsTrigger value="preview">Aperçu d'Impression</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 bg-muted dark:bg-muted">
+            <TabsTrigger value="test">Test Connexion</TabsTrigger>
+            <TabsTrigger value="status">État</TabsTrigger>
+            <TabsTrigger value="receipt">Format Ticket</TabsTrigger>
+            <TabsTrigger value="preview">Aperçu</TabsTrigger>
           </TabsList>
 
           <TabsContent value="test" className="space-y-6 mt-6">
-            <Card>
+            <Card className="bg-background dark:bg-background">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-foreground">
                   <Settings className="h-5 w-5" />
                   Configuration de Test
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <h4 className="font-semibold mb-3">Type de connexion :</h4>
+                  <h4 className="font-semibold mb-3 text-foreground">Type de connexion :</h4>
                   <div className="grid grid-cols-3 gap-3">
                     <Button
                       variant={connectionType === "usb" ? "default" : "outline"}
@@ -307,30 +432,30 @@ export function TPEPrinterTestModal({ isOpen, onClose }: TPEPrinterTestModalProp
                 {isTestingConnection && (
                   <div className="space-y-2">
                     <Progress value={testProgress} className="w-full" />
-                    <p className="text-sm text-gray-500 text-center">Diagnostic en cours...</p>
+                    <p className="text-sm text-muted-foreground text-center">Diagnostic en cours...</p>
                   </div>
                 )}
               </CardContent>
             </Card>
 
             {testResults.length > 0 && (
-              <Card>
+              <Card className="bg-background dark:bg-background">
                 <CardHeader>
-                  <CardTitle>Résultats du Test</CardTitle>
+                  <CardTitle className="text-foreground">Résultats du Test</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     {testResults.map((result, index) => (
                       <div
                         key={index}
-                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                        className="flex items-center justify-between p-3 bg-muted dark:bg-muted rounded-lg"
                       >
                         <div className="flex items-center gap-3">
                           {getStatusIcon(result.status)}
                           <div>
-                            <p className="font-medium">{result.test}</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">{result.message}</p>
-                            {result.details && <p className="text-xs text-gray-500 mt-1">{result.details}</p>}
+                            <p className="font-medium text-foreground">{result.test}</p>
+                            <p className="text-sm text-muted-foreground">{result.message}</p>
+                            {result.details && <p className="text-xs text-muted-foreground mt-1">{result.details}</p>}
                           </div>
                         </div>
                         <Badge className={getStatusColor(result.status)}>{getStatusLabel(result.status)}</Badge>
@@ -344,20 +469,20 @@ export function TPEPrinterTestModal({ isOpen, onClose }: TPEPrinterTestModalProp
 
           <TabsContent value="status" className="space-y-6 mt-6">
             <div className="grid md:grid-cols-2 gap-6">
-              <Card>
+              <Card className="bg-background dark:bg-background">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-foreground">
                     <Printer className="h-5 w-5" />
                     État de la Connexion
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-muted dark:bg-muted rounded-lg">
                     <div className="flex items-center gap-3">
                       {connectionType === "usb" && <Usb className="h-5 w-5" />}
                       {connectionType === "wifi" && <Wifi className="h-5 w-5" />}
                       {connectionType === "bluetooth" && <Bluetooth className="h-5 w-5" />}
-                      <span className="font-medium">Connexion {connectionType.toUpperCase()}</span>
+                      <span className="font-medium text-foreground">Connexion {connectionType.toUpperCase()}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       {getStatusIcon(printerStatus.connection)}
@@ -367,10 +492,10 @@ export function TPEPrinterTestModal({ isOpen, onClose }: TPEPrinterTestModalProp
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-muted dark:bg-muted rounded-lg">
                     <div className="flex items-center gap-3">
                       <FileText className="h-5 w-5" />
-                      <span className="font-medium">Pilotes d'imprimante</span>
+                      <span className="font-medium text-foreground">Pilotes d'imprimante</span>
                     </div>
                     <div className="flex items-center gap-2">
                       {getStatusIcon(printerStatus.driver)}
@@ -382,18 +507,18 @@ export function TPEPrinterTestModal({ isOpen, onClose }: TPEPrinterTestModalProp
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-background dark:bg-background">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-foreground">
                     <AlertTriangle className="h-5 w-5" />
                     État Physique
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-muted dark:bg-muted rounded-lg">
                     <div className="flex items-center gap-3">
                       <FileText className="h-5 w-5" />
-                      <span className="font-medium">Niveau de papier</span>
+                      <span className="font-medium text-foreground">Niveau de papier</span>
                     </div>
                     <div className="flex items-center gap-2">
                       {getStatusIcon(printerStatus.paper)}
@@ -403,10 +528,10 @@ export function TPEPrinterTestModal({ isOpen, onClose }: TPEPrinterTestModalProp
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-muted dark:bg-muted rounded-lg">
                     <div className="flex items-center gap-3">
                       <Thermometer className="h-5 w-5" />
-                      <span className="font-medium">Température</span>
+                      <span className="font-medium text-foreground">Température</span>
                     </div>
                     <div className="flex items-center gap-2">
                       {getStatusIcon(printerStatus.temperature)}
@@ -420,14 +545,14 @@ export function TPEPrinterTestModal({ isOpen, onClose }: TPEPrinterTestModalProp
             </div>
 
             {printerStatus.connection === "connected" && (
-              <Card>
+              <Card className="bg-background dark:bg-background">
                 <CardHeader>
-                  <CardTitle>Actions Disponibles</CardTitle>
+                  <CardTitle className="text-foreground">Actions Disponibles</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex gap-3">
                     <Button
-                      onClick={printTestPage}
+                      onClick={printTestReceipt}
                       disabled={isPrinting}
                       className="flex-1 bg-green-600 hover:bg-green-700"
                     >
@@ -438,12 +563,16 @@ export function TPEPrinterTestModal({ isOpen, onClose }: TPEPrinterTestModalProp
                         </>
                       ) : (
                         <>
-                          <Printer className="h-4 w-4 mr-2" />
-                          Imprimer Page de Test
+                          <Receipt className="h-4 w-4 mr-2" />
+                          Imprimer Ticket Test
                         </>
                       )}
                     </Button>
-                    <Button variant="outline" onClick={runConnectionTest} className="flex-1 bg-transparent">
+                    <Button
+                      variant="outline"
+                      onClick={runConnectionTest}
+                      className="flex-1 bg-background dark:bg-background"
+                    >
                       <Zap className="h-4 w-4 mr-2" />
                       Nouveau Test
                     </Button>
@@ -453,79 +582,231 @@ export function TPEPrinterTestModal({ isOpen, onClose }: TPEPrinterTestModalProp
             )}
           </TabsContent>
 
-          <TabsContent value="preview" className="space-y-6 mt-6">
-            <Card>
+          <TabsContent value="receipt" className="space-y-6 mt-6">
+            <Card className="bg-background dark:bg-background">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Aperçu de la Page de Test
+                <CardTitle className="flex items-center gap-2 text-foreground">
+                  <Receipt className="h-5 w-5" />
+                  Configuration du Format de Ticket
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="bg-white border-2 border-dashed border-gray-300 p-6 rounded-lg font-mono text-sm">
-                  <div className="text-center mb-4">
-                    <h3 className="font-bold text-lg">═══ PAGE DE TEST TPE ═══</h3>
-                    <p className="text-xs text-gray-600">Crypto Store Lausanne</p>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="header">En-tête du ticket</Label>
+                      <Textarea
+                        id="header"
+                        value={receiptSettings.header}
+                        onChange={(e) => setReceiptSettings({ ...receiptSettings, header: e.target.value })}
+                        placeholder="Nom du commerce"
+                        className="bg-background dark:bg-background"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="footer">Pied de page</Label>
+                      <Textarea
+                        id="footer"
+                        value={receiptSettings.footer}
+                        onChange={(e) => setReceiptSettings({ ...receiptSettings, footer: e.target.value })}
+                        placeholder="Message de remerciement"
+                        className="bg-background dark:bg-background"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="paperWidth">Largeur papier</Label>
+                        <Select
+                          value={receiptSettings.paperWidth}
+                          onValueChange={(value: "58mm" | "80mm") =>
+                            setReceiptSettings({ ...receiptSettings, paperWidth: value })
+                          }
+                        >
+                          <SelectTrigger className="bg-background dark:bg-background">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="58mm">58mm (standard)</SelectItem>
+                            <SelectItem value="80mm">80mm (large)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="fontSize">Taille police</Label>
+                        <Select
+                          value={receiptSettings.fontSize}
+                          onValueChange={(value: "small" | "medium" | "large") =>
+                            setReceiptSettings({ ...receiptSettings, fontSize: value })
+                          }
+                        >
+                          <SelectTrigger className="bg-background dark:bg-background">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="small">Petite</SelectItem>
+                            <SelectItem value="medium">Moyenne</SelectItem>
+                            <SelectItem value="large">Grande</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="border-t border-b border-gray-300 py-3 my-4">
-                    <div className="grid grid-cols-2 gap-4 text-xs">
-                      <div>
-                        <strong>Date:</strong> {new Date().toLocaleDateString("fr-CH")}
+                  <div className="space-y-4">
+                    <Label className="text-foreground">Éléments à inclure</Label>
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="includeLogo"
+                          checked={receiptSettings.includeLogo}
+                          onCheckedChange={(checked) =>
+                            setReceiptSettings({ ...receiptSettings, includeLogo: !!checked })
+                          }
+                        />
+                        <Label htmlFor="includeLogo">Logo du commerce</Label>
                       </div>
-                      <div>
-                        <strong>Heure:</strong> {new Date().toLocaleTimeString("fr-CH")}
-                      </div>
-                      <div>
-                        <strong>Terminal:</strong> TPE-001
-                      </div>
-                      <div>
-                        <strong>Version:</strong> 2.1.4
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span>Test d'impression:</span>
-                      <span>✓ RÉUSSI</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Qualité d'impression:</span>
-                      <span>EXCELLENTE</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Alignement:</span>
-                      <span>CORRECT</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Contraste:</span>
-                      <span>OPTIMAL</span>
-                    </div>
-                  </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="includeAddress"
+                          checked={receiptSettings.includeAddress}
+                          onCheckedChange={(checked) =>
+                            setReceiptSettings({ ...receiptSettings, includeAddress: !!checked })
+                          }
+                        />
+                        <Label htmlFor="includeAddress">Adresse</Label>
+                      </div>
 
-                  <div className="mt-4 pt-3 border-t border-gray-300">
-                    <div className="text-center text-xs">
-                      <p>Test Pattern: ████████████████</p>
-                      <p>Barcode: ||||| ||||| |||||</p>
-                      <p className="mt-2">Si cette page s'imprime correctement,</p>
-                      <p>votre imprimante fonctionne parfaitement.</p>
-                    </div>
-                  </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="includePhone"
+                          checked={receiptSettings.includePhone}
+                          onCheckedChange={(checked) =>
+                            setReceiptSettings({ ...receiptSettings, includePhone: !!checked })
+                          }
+                        />
+                        <Label htmlFor="includePhone">Téléphone</Label>
+                      </div>
 
-                  <div className="text-center mt-4 text-xs text-gray-500">
-                    <p>═══════════════════════════════</p>
-                    <p>Fin du test d'impression</p>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="includeEmail"
+                          checked={receiptSettings.includeEmail}
+                          onCheckedChange={(checked) =>
+                            setReceiptSettings({ ...receiptSettings, includeEmail: !!checked })
+                          }
+                        />
+                        <Label htmlFor="includeEmail">Email</Label>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="includeVAT"
+                          checked={receiptSettings.includeVAT}
+                          onCheckedChange={(checked) =>
+                            setReceiptSettings({ ...receiptSettings, includeVAT: !!checked })
+                          }
+                        />
+                        <Label htmlFor="includeVAT">Numéro TVA</Label>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="includeDate"
+                          checked={receiptSettings.includeDate}
+                          onCheckedChange={(checked) =>
+                            setReceiptSettings({ ...receiptSettings, includeDate: !!checked })
+                          }
+                        />
+                        <Label htmlFor="includeDate">Date</Label>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="includeTime"
+                          checked={receiptSettings.includeTime}
+                          onCheckedChange={(checked) =>
+                            setReceiptSettings({ ...receiptSettings, includeTime: !!checked })
+                          }
+                        />
+                        <Label htmlFor="includeTime">Heure</Label>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="includeQR"
+                          checked={receiptSettings.includeQR}
+                          onCheckedChange={(checked) =>
+                            setReceiptSettings({ ...receiptSettings, includeQR: !!checked })
+                          }
+                        />
+                        <Label htmlFor="includeQR">Code QR de vérification</Label>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
+                <Button onClick={saveReceiptSettings} className="w-full">
+                  <Save className="h-4 w-4 mr-2" />
+                  Sauvegarder la Configuration
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="preview" className="space-y-6 mt-6">
+            <Card className="bg-background dark:bg-background">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-foreground">
+                  <FileText className="h-5 w-5" />
+                  Aperçu du Ticket de Caisse
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-white dark:bg-gray-900 border-2 border-dashed border-gray-300 dark:border-gray-600 p-6 rounded-lg font-mono text-sm max-w-md mx-auto">
+                  <pre className="whitespace-pre-wrap text-gray-900 dark:text-gray-100 text-center leading-tight">
+                    {generateReceiptPreview()}
+                  </pre>
+                </div>
+
                 <Alert className="mt-4">
-                  <Printer className="h-4 w-4" />
+                  <Receipt className="h-4 w-4" />
                   <AlertDescription>
-                    Cette page de test permet de vérifier la qualité d'impression, l'alignement et le bon fonctionnement
-                    de tous les éléments de l'imprimante.
+                    Cet aperçu montre comment apparaîtra votre ticket de caisse avec les paramètres actuels. Le format
+                    réel peut légèrement varier selon votre imprimante.
                   </AlertDescription>
                 </Alert>
+
+                <div className="flex gap-2 mt-4">
+                  <Button
+                    onClick={printTestReceipt}
+                    disabled={printerStatus.connection !== "connected" || isPrinting}
+                    className="flex-1 bg-green-600 hover:bg-green-700"
+                  >
+                    {isPrinting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        Impression...
+                      </>
+                    ) : (
+                      <>
+                        <Printer className="h-4 w-4 mr-2" />
+                        Imprimer ce Ticket
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={saveReceiptSettings}
+                    className="flex-1 bg-background dark:bg-background"
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    Sauvegarder
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

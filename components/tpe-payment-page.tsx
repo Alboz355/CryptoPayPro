@@ -1,434 +1,446 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { CreditCard, QrCode, CheckCircle, Clock, DollarSign, Calculator, Receipt, Smartphone } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ArrowLeft, QrCode, Copy, Printer, RefreshCw, CheckCircle, Clock } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { cryptoService } from "@/lib/crypto-prices"
+import type { AppState } from "@/app/page"
 
-interface PaymentData {
-  amount: string
-  currency: "CHF" | "EUR" | "USD"
-  cryptoCurrency: "BTC" | "ETH" | "ALGO"
-  customer?: {
-    name: string
-    email: string
-    phone: string
+interface TPEPaymentPageProps {
+  onNavigate: (page: AppState) => void
+  onBack: () => void
+  walletData: any
+}
+
+interface CryptoOption {
+  id: string
+  name: string
+  symbol: string
+  color: string
+  address: string
+  qrPrefix: string
+}
+
+export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPageProps) {
+  const [amount, setAmount] = useState("")
+  const [selectedCrypto, setSelectedCrypto] = useState("bitcoin")
+  const [cryptoAmount, setCryptoAmount] = useState("")
+  const [qrCodeUrl, setQrCodeUrl] = useState("")
+  const [cryptoPrices, setCryptoPrices] = useState<any>({})
+  const [loading, setLoading] = useState(false)
+  const [paymentStatus, setPaymentStatus] = useState<"waiting" | "received" | "confirmed">("waiting")
+  const { toast } = useToast()
+
+  const cryptoOptions: Record<string, CryptoOption> = {
+    bitcoin: {
+      id: "bitcoin",
+      name: "Bitcoin",
+      symbol: "BTC",
+      color: "bg-orange-500",
+      address: walletData?.addresses?.bitcoin || "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+      qrPrefix: "bitcoin:",
+    },
+    ethereum: {
+      id: "ethereum",
+      name: "Ethereum",
+      symbol: "ETH",
+      color: "bg-blue-500",
+      address: walletData?.addresses?.ethereum || "0x742d35Cc6634C0532925a3b8D4C9db96590b5c8e",
+      qrPrefix: "ethereum:",
+    },
+    algorand: {
+      id: "algorand",
+      name: "Algorand",
+      symbol: "ALGO",
+      color: "bg-black",
+      address: walletData?.addresses?.algorand || "ALGORANDADDRESSEXAMPLE234567890ABCDEFGHIJK",
+      qrPrefix: "algorand:",
+    },
   }
-  description: string
-}
 
-// Taux de change simulés
-const mockRates = {
-  BTC: { CHF: 43000, EUR: 40000, USD: 42000 },
-  ETH: { CHF: 2400, EUR: 2200, USD: 2300 },
-  ALGO: { CHF: 0.32, EUR: 0.29, USD: 0.31 },
-}
+  useEffect(() => {
+    fetchCryptoPrices()
+    const interval = setInterval(fetchCryptoPrices, 30000) // Update every 30 seconds
+    return () => clearInterval(interval)
+  }, [])
 
-export function TPEPaymentPage() {
-  const [paymentData, setPaymentData] = useState<PaymentData>({
-    amount: "",
-    currency: "CHF",
-    cryptoCurrency: "BTC",
-    description: "",
-  })
-  const [currentStep, setCurrentStep] = useState<"setup" | "confirm" | "processing" | "completed">("setup")
-  const [qrCodeData, setQrCodeData] = useState("")
-  const [processingTime, setProcessingTime] = useState(0)
+  useEffect(() => {
+    if (amount && cryptoPrices[selectedCrypto]) {
+      calculateCryptoAmount()
+      generateQRCode()
+    }
+  }, [amount, selectedCrypto, cryptoPrices])
+
+  const fetchCryptoPrices = async () => {
+    try {
+      const prices = await cryptoService.getCryptoPrices()
+      const priceMap = prices.reduce((acc: any, crypto: any) => {
+        acc[crypto.id] = crypto.current_price
+        return acc
+      }, {})
+      setCryptoPrices(priceMap)
+    } catch (error) {
+      console.error("Error fetching crypto prices:", error)
+      // Fallback prices
+      setCryptoPrices({
+        bitcoin: 45000,
+        ethereum: 2800,
+        algorand: 0.25,
+      })
+    }
+  }
 
   const calculateCryptoAmount = () => {
-    if (!paymentData.amount) return "0"
-    const fiatAmount = Number.parseFloat(paymentData.amount)
-    const rate = mockRates[paymentData.cryptoCurrency][paymentData.currency]
-    const cryptoAmount = fiatAmount / rate
+    const chfAmount = Number.parseFloat(amount)
+    const cryptoPrice = cryptoPrices[selectedCrypto]
 
-    switch (paymentData.cryptoCurrency) {
-      case "BTC":
-        return cryptoAmount.toFixed(8)
-      case "ETH":
-        return cryptoAmount.toFixed(6)
-      case "ALGO":
-        return cryptoAmount.toFixed(2)
-      default:
-        return "0"
+    if (chfAmount && cryptoPrice) {
+      // Convert CHF to USD (approximate rate)
+      const usdAmount = chfAmount * 1.1 // 1 CHF ≈ 1.1 USD
+      const cryptoValue = usdAmount / cryptoPrice
+      setCryptoAmount(cryptoValue.toFixed(8))
     }
   }
 
-  const handleStartPayment = () => {
-    if (!paymentData.amount || Number.parseFloat(paymentData.amount) <= 0) {
-      return
+  const generateQRCode = () => {
+    const crypto = cryptoOptions[selectedCrypto]
+    let qrData = crypto.address
+
+    if (amount && Number.parseFloat(amount) > 0) {
+      const cryptoValue = Number.parseFloat(cryptoAmount)
+
+      switch (selectedCrypto) {
+        case "bitcoin":
+          qrData = `${crypto.qrPrefix}${crypto.address}?amount=${cryptoValue}`
+          break
+        case "ethereum":
+          // Ethereum uses wei (1 ETH = 10^18 wei)
+          const weiAmount = Math.floor(cryptoValue * Math.pow(10, 18))
+          qrData = `${crypto.qrPrefix}${crypto.address}?value=${weiAmount}`
+          break
+        case "algorand":
+          // Algorand uses microAlgos (1 ALGO = 10^6 microAlgos)
+          const microAlgos = Math.floor(cryptoValue * Math.pow(10, 6))
+          qrData = `${crypto.qrPrefix}${crypto.address}?amount=${microAlgos}`
+          break
+      }
     }
 
-    // Générer QR code simulé
-    const cryptoAmount = calculateCryptoAmount()
-    setQrCodeData(`${paymentData.cryptoCurrency}:${cryptoAmount}`)
-    setCurrentStep("confirm")
+    // Generate QR code with proper crypto URI
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}&bgcolor=FFFFFF&color=000000&margin=10`
+    setQrCodeUrl(qrUrl)
   }
 
-  const handleConfirmPayment = () => {
-    setCurrentStep("processing")
-    setProcessingTime(0)
-
-    // Simulation du traitement
-    const interval = setInterval(() => {
-      setProcessingTime((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval)
-          setCurrentStep("completed")
-          return 100
-        }
-        return prev + 10
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast({
+        title: "Copié !",
+        description: `${label} copié dans le presse-papiers`,
       })
-    }, 500)
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de copier dans le presse-papiers",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleNewPayment = () => {
-    setPaymentData({
-      amount: "",
-      currency: "CHF",
-      cryptoCurrency: "BTC",
-      description: "",
-    })
-    setCurrentStep("setup")
-    setProcessingTime(0)
-    setQrCodeData("")
+  const printReceipt = () => {
+    const crypto = cryptoOptions[selectedCrypto]
+    const receiptContent = `
+      CRYPTO STORE LAUSANNE
+      Terminal de Paiement
+      =====================
+      
+      Montant: ${amount} CHF
+      Crypto: ${cryptoAmount} ${crypto.symbol}
+      Taux: ${cryptoPrices[selectedCrypto]?.toFixed(2)} USD
+      
+      Adresse:
+      ${crypto.address}
+      
+      ${new Date().toLocaleString("fr-CH")}
+      =====================
+    `
+
+    const printWindow = window.open("", "_blank")
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Reçu de Paiement</title>
+            <style>
+              body { font-family: monospace; font-size: 12px; margin: 20px; }
+              .receipt { width: 300px; margin: 0 auto; }
+            </style>
+          </head>
+          <body>
+            <div class="receipt">
+              <pre>${receiptContent}</pre>
+            </div>
+          </body>
+        </html>
+      `)
+      printWindow.document.close()
+      printWindow.print()
+    }
   }
+
+  const simulatePaymentReceived = () => {
+    setPaymentStatus("received")
+    toast({
+      title: "Paiement reçu !",
+      description: "Transaction en cours de confirmation...",
+    })
+
+    setTimeout(() => {
+      setPaymentStatus("confirmed")
+      toast({
+        title: "Paiement confirmé !",
+        description: "Transaction validée sur la blockchain",
+      })
+    }, 3000)
+  }
+
+  const currentCrypto = cryptoOptions[selectedCrypto]
+  const currentPrice = cryptoPrices[selectedCrypto]
 
   return (
-    <div className="space-y-6 p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
-      {/* En-tête */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">💳 Paiement Crypto</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Accepter des paiements en cryptomonnaies</p>
+    <div className="min-h-screen bg-background dark:bg-background">
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" onClick={onBack} className="bg-background dark:bg-background">
+            <ArrowLeft className="h-5 w-5 mr-2" />
+            Retour au TPE
+          </Button>
+          <h1 className="text-2xl font-bold text-foreground">💳 Nouveau Paiement</h1>
+          <div className="w-32" />
         </div>
-        <div className="flex items-center gap-2">
-          <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20">🟢 Terminal Actif</Badge>
-        </div>
-      </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Configuration du paiement */}
-        <div className="lg:col-span-2">
-          {currentStep === "setup" && (
-            <Card>
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Left Column - Payment Setup */}
+          <div className="space-y-6">
+            {/* Amount Input */}
+            <Card className="bg-card dark:bg-card">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  Configuration du Paiement
-                </CardTitle>
+                <CardTitle className="text-foreground">Montant à encaisser</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="amount">Montant *</Label>
-                    <Input
-                      id="amount"
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={paymentData.amount}
-                      onChange={(e) =>
-                        setPaymentData((prev) => ({
-                          ...prev,
-                          amount: e.target.value,
-                        }))
-                      }
-                      className="text-2xl font-bold text-right"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="currency">Devise</Label>
-                    <Select
-                      value={paymentData.currency}
-                      onValueChange={(value: "CHF" | "EUR" | "USD") =>
-                        setPaymentData((prev) => ({ ...prev, currency: value }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="CHF">CHF - Franc Suisse</SelectItem>
-                        <SelectItem value="EUR">EUR - Euro</SelectItem>
-                        <SelectItem value="USD">USD - Dollar US</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
+              <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="crypto">Cryptomonnaie</Label>
-                  <Select
-                    value={paymentData.cryptoCurrency}
-                    onValueChange={(value: "BTC" | "ETH" | "ALGO") =>
-                      setPaymentData((prev) => ({ ...prev, cryptoCurrency: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="BTC">₿ Bitcoin (BTC)</SelectItem>
-                      <SelectItem value="ETH">Ξ Ethereum (ETH)</SelectItem>
-                      <SelectItem value="ALGO">◈ Algorand (ALGO)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {paymentData.amount && (
-                  <Alert>
-                    <Calculator className="h-4 w-4" />
-                    <AlertDescription>
-                      <strong>Montant crypto:</strong> {calculateCryptoAmount()} {paymentData.cryptoCurrency}
-                      <br />
-                      <strong>Taux:</strong> 1 {paymentData.cryptoCurrency} ={" "}
-                      {mockRates[paymentData.cryptoCurrency][paymentData.currency].toLocaleString()}{" "}
-                      {paymentData.currency}
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                <div>
-                  <Label htmlFor="description">Description (optionnelle)</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Description du paiement..."
-                    value={paymentData.description}
-                    onChange={(e) =>
-                      setPaymentData((prev) => ({
-                        ...prev,
-                        description: e.target.value,
-                      }))
-                    }
+                  <Label htmlFor="amount" className="text-foreground">
+                    Montant en CHF
+                  </Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="text-2xl font-bold text-center bg-background dark:bg-background text-foreground"
                   />
                 </div>
 
-                <div className="flex gap-4">
-                  <Button
-                    onClick={handleStartPayment}
-                    disabled={!paymentData.amount || Number.parseFloat(paymentData.amount) <= 0}
-                    className="flex-1 h-12 bg-green-600 hover:bg-green-700"
-                  >
-                    <QrCode className="h-4 w-4 mr-2" />
-                    Générer QR Code
-                  </Button>
+                {/* Quick Amount Buttons */}
+                <div className="grid grid-cols-4 gap-2">
+                  {["10", "50", "100", "500"].map((quickAmount) => (
+                    <Button
+                      key={quickAmount}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAmount(quickAmount)}
+                      className="bg-background dark:bg-background"
+                    >
+                      {quickAmount}
+                    </Button>
+                  ))}
                 </div>
               </CardContent>
             </Card>
-          )}
 
-          {currentStep === "confirm" && (
-            <Card>
+            {/* Crypto Selection */}
+            <Card className="bg-card dark:bg-card">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <QrCode className="h-5 w-5" />
-                  Confirmation du Paiement
+                <CardTitle className="text-foreground">Cryptomonnaie</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Tabs value={selectedCrypto} onValueChange={setSelectedCrypto}>
+                  <TabsList className="grid w-full grid-cols-3 bg-muted dark:bg-muted">
+                    <TabsTrigger value="bitcoin">BTC</TabsTrigger>
+                    <TabsTrigger value="ethereum">ETH</TabsTrigger>
+                    <TabsTrigger value="algorand">ALGO</TabsTrigger>
+                  </TabsList>
+
+                  {Object.entries(cryptoOptions).map(([key, crypto]) => (
+                    <TabsContent key={key} value={key} className="mt-4">
+                      <div className="flex items-center space-x-4 p-4 bg-muted dark:bg-muted rounded-lg">
+                        <div className={`w-12 h-12 ${crypto.color} rounded-full flex items-center justify-center`}>
+                          <span className="text-white font-bold text-lg">{crypto.symbol.charAt(0)}</span>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-foreground">{crypto.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Prix actuel: {currentPrice ? `$${currentPrice.toFixed(2)}` : "Chargement..."}
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={fetchCryptoPrices}
+                          disabled={loading}
+                          className="bg-background dark:bg-background"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                        </Button>
+                      </div>
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              </CardContent>
+            </Card>
+
+            {/* Conversion Display */}
+            {amount && cryptoAmount && (
+              <Card className="bg-card dark:bg-card">
+                <CardContent className="pt-6">
+                  <div className="text-center space-y-2">
+                    <p className="text-2xl font-bold text-foreground">{amount} CHF</p>
+                    <p className="text-muted-foreground">≈</p>
+                    <p className="text-2xl font-bold text-primary">
+                      {cryptoAmount} {currentCrypto.symbol}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Taux: ${currentPrice?.toFixed(2)} USD</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Right Column - QR Code & Payment */}
+          <div className="space-y-6">
+            {/* QR Code */}
+            <Card className="bg-card dark:bg-card">
+              <CardHeader>
+                <CardTitle className="text-foreground flex items-center">
+                  <QrCode className="mr-2 h-5 w-5" />
+                  Code QR de Paiement
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-center space-y-6">
-                {/* QR Code simulé */}
-                <div className="bg-white p-8 rounded-lg border-2 border-gray-200 inline-block">
-                  <div className="w-48 h-48 bg-gray-900 rounded-lg flex items-center justify-center">
-                    <QrCode className="h-24 w-24 text-white" />
+              <CardContent className="text-center space-y-4">
+                {qrCodeUrl ? (
+                  <div className="bg-white p-4 rounded-lg inline-block">
+                    <img
+                      src={qrCodeUrl || "/placeholder.svg"}
+                      alt="QR Code de paiement"
+                      className="w-64 h-64 mx-auto"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        target.src = `/placeholder.svg?height=256&width=256&text=QR+Code`
+                      }}
+                    />
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">QR Code: {qrCodeData}</p>
-                </div>
+                ) : (
+                  <div className="w-64 h-64 bg-muted dark:bg-muted rounded-lg flex items-center justify-center mx-auto">
+                    <p className="text-muted-foreground">Saisissez un montant</p>
+                  </div>
+                )}
 
+                {/* Payment Status */}
                 <div className="space-y-2">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {paymentData.amount} {paymentData.currency}
-                  </p>
-                  <p className="text-lg text-gray-600 dark:text-gray-400">
-                    = {calculateCryptoAmount()} {paymentData.cryptoCurrency}
-                  </p>
+                  {paymentStatus === "waiting" && (
+                    <Badge
+                      variant="outline"
+                      className="bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400"
+                    >
+                      <Clock className="mr-1 h-3 w-3" />
+                      En attente de paiement
+                    </Badge>
+                  )}
+                  {paymentStatus === "received" && (
+                    <Badge
+                      variant="outline"
+                      className="bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400"
+                    >
+                      <RefreshCw className="mr-1 h-3 w-3 animate-spin" />
+                      Paiement reçu - Confirmation...
+                    </Badge>
+                  )}
+                  {paymentStatus === "confirmed" && (
+                    <Badge
+                      variant="outline"
+                      className="bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400"
+                    >
+                      <CheckCircle className="mr-1 h-3 w-3" />
+                      Paiement confirmé
+                    </Badge>
+                  )}
                 </div>
 
-                <Alert>
-                  <Smartphone className="h-4 w-4" />
-                  <AlertDescription>
-                    Demandez au client de scanner ce QR code avec son portefeuille crypto
-                  </AlertDescription>
-                </Alert>
-
-                <div className="flex gap-4">
-                  <Button variant="outline" onClick={() => setCurrentStep("setup")}>
-                    Retour
+                {/* Action Buttons */}
+                <div className="flex gap-2 justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyToClipboard(currentCrypto.address, "Adresse")}
+                    className="bg-background dark:bg-background"
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copier adresse
                   </Button>
-                  <Button onClick={handleConfirmPayment} className="flex-1 bg-green-600 hover:bg-green-700">
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Confirmer la Transaction
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={printReceipt}
+                    disabled={!amount}
+                    className="bg-background dark:bg-background"
+                  >
+                    <Printer className="mr-2 h-4 w-4" />
+                    Imprimer
                   </Button>
                 </div>
               </CardContent>
             </Card>
-          )}
 
-          {currentStep === "processing" && (
-            <Card>
+            {/* Address Display */}
+            <Card className="bg-card dark:bg-card">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  Traitement en Cours
-                </CardTitle>
+                <CardTitle className="text-foreground">Adresse de réception</CardTitle>
               </CardHeader>
-              <CardContent className="text-center space-y-6">
-                <div className="w-16 h-16 mx-auto border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-
-                <div>
-                  <p className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                    Vérification de la Transaction
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="p-3 bg-muted dark:bg-muted rounded-lg break-all text-sm font-mono text-foreground">
+                    {currentCrypto.address}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    ⚠️ Envoyez uniquement du {currentCrypto.name} ({currentCrypto.symbol}) à cette adresse
                   </p>
-                  <p className="text-gray-600 dark:text-gray-400">Attente de confirmation sur le réseau...</p>
-                </div>
-
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${processingTime}%` }}
-                  ></div>
-                </div>
-
-                <p className="text-sm text-gray-500">Progression: {processingTime}%</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {currentStep === "completed" && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  Paiement Réussi
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-center space-y-6">
-                <div className="w-16 h-16 mx-auto bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                </div>
-
-                <div>
-                  <p className="text-2xl font-bold text-green-600 mb-2">Transaction Confirmée</p>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    Le paiement de {paymentData.amount} {paymentData.currency} a été reçu avec succès
-                  </p>
-                </div>
-
-                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg space-y-2">
-                  <div className="flex justify-between">
-                    <span>Montant:</span>
-                    <span className="font-semibold">
-                      {calculateCryptoAmount()} {paymentData.cryptoCurrency}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Équivalent:</span>
-                    <span className="font-semibold">
-                      {paymentData.amount} {paymentData.currency}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Frais réseau:</span>
-                    <span className="font-semibold text-green-600">Gratuit</span>
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <Button variant="outline">
-                    <Receipt className="h-4 w-4 mr-2" />
-                    Imprimer Reçu
-                  </Button>
-                  <Button onClick={handleNewPayment} className="flex-1 bg-blue-600 hover:bg-blue-700">
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Nouveau Paiement
-                  </Button>
                 </div>
               </CardContent>
             </Card>
-          )}
-        </div>
 
-        {/* Panel d'informations */}
-        <div className="space-y-4">
-          {/* Taux actuels */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5" />
-                Taux Actuels
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {Object.entries(mockRates).map(([crypto, rates]) => (
-                <div key={crypto} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                  <span className="font-semibold">{crypto}</span>
-                  <span className="text-sm">
-                    {rates[paymentData.currency].toLocaleString()} {paymentData.currency}
-                  </span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* Instructions */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Instructions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                  1
-                </span>
-                <p className="text-sm">Saisissez le montant à recevoir</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                  2
-                </span>
-                <p className="text-sm">Choisissez la cryptomonnaie</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                  3
-                </span>
-                <p className="text-sm">Générez le QR code</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                  4
-                </span>
-                <p className="text-sm">Le client scanne et paye</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Statut système */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Statut Système</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Réseau Bitcoin</span>
-                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20">🟢 Actif</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Réseau Ethereum</span>
-                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20">🟢 Actif</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Prix Crypto</span>
-                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20">🟢 Sync</Badge>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Test Button (for demo) */}
+            <Card className="bg-card dark:bg-card border-dashed">
+              <CardContent className="pt-6 text-center">
+                <p className="text-sm text-muted-foreground mb-3">Mode démonstration</p>
+                <Button
+                  onClick={simulatePaymentReceived}
+                  disabled={paymentStatus !== "waiting" || !amount}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  Simuler réception paiement
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

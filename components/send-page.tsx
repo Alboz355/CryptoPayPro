@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Send, Loader2 } from "lucide-react"
+import { ArrowLeft, Send, Loader2 } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
+import { useLanguage } from "@/contexts/language-context"
 import type { AppState } from "@/app/page"
 import type { WalletData } from "@/lib/wallet-utils"
 
@@ -17,6 +18,7 @@ interface SendPageProps {
 }
 
 export function SendPage({ onNavigate, walletData }: SendPageProps) {
+  const { t } = useLanguage()
   const [selectedCrypto, setSelectedCrypto] = useState("bitcoin")
   const [recipientAddress, setRecipientAddress] = useState("")
   const [amount, setAmount] = useState("")
@@ -26,8 +28,8 @@ export function SendPage({ onNavigate, walletData }: SendPageProps) {
   const handleSendTransaction = async () => {
     if (!walletData) {
       toast({
-        title: "Erreur",
-        description: "Portefeuille non chargé.",
+        title: t.common.error,
+        description: t.send.walletNotLoaded,
         variant: "destructive",
       })
       return
@@ -36,7 +38,7 @@ export function SendPage({ onNavigate, walletData }: SendPageProps) {
     if (!recipientAddress || !amount || Number(amount) <= 0) {
       toast({
         title: "Erreur de saisie",
-        description: "Veuillez remplir tous les champs correctement.",
+        description: t.send.fillAllFields,
         variant: "destructive",
       })
       return
@@ -57,7 +59,7 @@ export function SendPage({ onNavigate, walletData }: SendPageProps) {
       // e.g., using ethers.js for Ethereum, bitcoinjs-lib for Bitcoin, algosdk for Algorand
 
       toast({
-        title: "Transaction réussie !",
+        title: t.send.transactionSuccess,
         description: `Vous avez envoyé ${amount} ${selectedCrypto.toUpperCase()}.`,
         variant: "success",
       })
@@ -66,7 +68,7 @@ export function SendPage({ onNavigate, walletData }: SendPageProps) {
     } catch (error) {
       console.error("Erreur lors de l'envoi:", error)
       toast({
-        title: "Erreur d'envoi",
+        title: t.send.transactionError,
         description: "La transaction a échoué. Veuillez réessayer.",
         variant: "destructive",
       })
@@ -82,7 +84,7 @@ export function SendPage({ onNavigate, walletData }: SendPageProps) {
         <Button variant="ghost" size="icon" onClick={() => onNavigate("dashboard")} className="touch-target mr-2">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-2xl font-bold">Envoyer des Cryptos</h1>
+        <h1 className="text-2xl font-bold">{t.send.title}</h1>
       </div>
 
       <div className="p-4 space-y-6">
@@ -92,24 +94,24 @@ export function SendPage({ onNavigate, walletData }: SendPageProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-2">
-              <Label htmlFor="crypto-select">Cryptomonnaie</Label>
+              <Label htmlFor="crypto-select">{t.send.cryptocurrency}</Label>
               <Select value={selectedCrypto} onValueChange={setSelectedCrypto}>
                 <SelectTrigger id="crypto-select">
                   <SelectValue placeholder="Sélectionner une cryptomonnaie" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="bitcoin">Bitcoin (BTC)</SelectItem>
-                  <SelectItem value="ethereum">Ethereum (ETH)</SelectItem>
-                  <SelectItem value="algorand">Algorand (ALGO)</SelectItem>
+                  <SelectItem value="bitcoin">{t.crypto.bitcoin} (BTC)</SelectItem>
+                  <SelectItem value="ethereum">{t.crypto.ethereum} (ETH)</SelectItem>
+                  <SelectItem value="algorand">{t.crypto.algorand} (ALGO)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="recipient-address">Adresse du destinataire</Label>
+              <Label htmlFor="recipient-address">{t.send.recipientAddress}</Label>
               <Input
                 id="recipient-address"
-                placeholder="Saisissez l'adresse du destinataire"
+                placeholder={t.send.recipientPlaceholder}
                 value={recipientAddress}
                 onChange={(e) => setRecipientAddress(e.target.value)}
                 disabled={isSending}
@@ -117,11 +119,11 @@ export function SendPage({ onNavigate, walletData }: SendPageProps) {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="amount">Montant</Label>
+              <Label htmlFor="amount">{t.send.amount}</Label>
               <Input
                 id="amount"
                 type="number"
-                placeholder="0.00"
+                placeholder={t.send.amountPlaceholder}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 disabled={isSending}
@@ -132,12 +134,12 @@ export function SendPage({ onNavigate, walletData }: SendPageProps) {
               {isSending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Envoi en cours...
+                  {t.send.sending}
                 </>
               ) : (
                 <>
                   <Send className="mr-2 h-4 w-4" />
-                  Envoyer
+                  {t.send.sendButton}
                 </>
               )}
             </Button>
@@ -146,7 +148,7 @@ export function SendPage({ onNavigate, walletData }: SendPageProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Votre solde</CardTitle>
+            <CardTitle className="text-lg">{t.send.yourBalance}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
@@ -154,7 +156,7 @@ export function SendPage({ onNavigate, walletData }: SendPageProps) {
               {selectedCrypto.toUpperCase()}
             </p>
             <p className="text-sm text-muted-foreground">
-              Votre adresse: {walletData?.addresses[selectedCrypto as keyof typeof walletData.addresses] || "N/A"}
+              {t.send.yourAddress}: {walletData?.addresses[selectedCrypto as keyof typeof walletData.addresses] || "N/A"}
             </p>
           </CardContent>
         </Card>

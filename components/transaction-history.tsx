@@ -6,17 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import {
-  ArrowLeft,
-  Search,
-  Download,
-  Filter,
-  ArrowUpRight,
-  ArrowDownLeft,
-  Clock,
-  CheckCircle,
-  XCircle,
-} from "lucide-react"
+import { ArrowLeft, Search, Download, Filter, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, XCircle } from 'lucide-react'
+import { useLanguage } from "@/contexts/language-context"
 import type { AppState } from "@/app/page"
 
 interface TransactionHistoryProps {
@@ -101,6 +92,7 @@ const mockTransactions: Transaction[] = [
 ]
 
 export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
+  const { t } = useLanguage()
   const [searchTerm, setSearchTerm] = useState("")
   const [filterType, setFilterType] = useState<"all" | "send" | "receive">("all")
   const [filterCrypto, setFilterCrypto] = useState<"all" | "bitcoin" | "ethereum" | "algorand">("all")
@@ -163,19 +155,44 @@ export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
     }
   }
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "completed":
+        return t.history.filters.completed
+      case "pending":
+        return t.history.filters.pending
+      case "failed":
+        return t.history.filters.failed
+      default:
+        return status
+    }
+  }
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case "send":
+        return t.history.filters.sent
+      case "receive":
+        return t.history.filters.received
+      default:
+        return type
+    }
+  }
+
   const exportToCSV = () => {
-    const headers = ["Date", "Type", "Crypto", "Montant", "Montant Fiat", "Adresse", "Statut", "Frais", "Hash"]
+    const headers = ["Date", "Heure", "Type", "Crypto", "Montant", "Montant Fiat", "Adresse", "Statut", "Frais", "Hash"]
     const csvContent = [
       headers.join(","),
       ...filteredTransactions.map((tx) =>
         [
           tx.timestamp.toLocaleDateString(),
-          tx.type,
+          tx.timestamp.toLocaleTimeString(),
+          getTypeLabel(tx.type),
           tx.crypto,
           tx.amount,
           tx.fiatAmount,
           tx.address,
-          tx.status,
+          getStatusLabel(tx.status),
           tx.fee,
           tx.hash,
         ].join(","),
@@ -204,16 +221,16 @@ export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
               className="flex items-center space-x-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span>Retour</span>
+              <span>{t.common.back}</span>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Historique des Transactions</h1>
-              <p className="text-gray-600 dark:text-gray-400">Consultez toutes vos transactions crypto</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t.history.title}</h1>
+              <p className="text-gray-600 dark:text-gray-400">{t.history.subtitle}</p>
             </div>
           </div>
           <Button onClick={exportToCSV} className="flex items-center space-x-2">
             <Download className="h-4 w-4" />
-            <span>Exporter CSV</span>
+            <span>{t.history.exportCSV}</span>
           </Button>
         </div>
 
@@ -222,7 +239,7 @@ export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Filter className="h-5 w-5" />
-              <span>Filtres</span>
+              <span>{t.history.filters.title}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -230,7 +247,7 @@ export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Rechercher..."
+                  placeholder={t.history.filters.searchPlaceholder}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -242,9 +259,9 @@ export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tous les types</SelectItem>
-                  <SelectItem value="send">Envoyé</SelectItem>
-                  <SelectItem value="receive">Reçu</SelectItem>
+                  <SelectItem value="all">{t.history.filters.allTypes}</SelectItem>
+                  <SelectItem value="send">{t.history.filters.sent}</SelectItem>
+                  <SelectItem value="receive">{t.history.filters.received}</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -253,10 +270,10 @@ export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
                   <SelectValue placeholder="Crypto" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Toutes les cryptos</SelectItem>
-                  <SelectItem value="bitcoin">Bitcoin</SelectItem>
-                  <SelectItem value="ethereum">Ethereum</SelectItem>
-                  <SelectItem value="algorand">Algorand</SelectItem>
+                  <SelectItem value="all">{t.history.filters.allCryptos}</SelectItem>
+                  <SelectItem value="bitcoin">{t.crypto.bitcoin}</SelectItem>
+                  <SelectItem value="ethereum">{t.crypto.ethereum}</SelectItem>
+                  <SelectItem value="algorand">{t.crypto.algorand}</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -265,10 +282,10 @@ export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
                   <SelectValue placeholder="Statut" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tous les statuts</SelectItem>
-                  <SelectItem value="completed">Terminé</SelectItem>
-                  <SelectItem value="pending">En attente</SelectItem>
-                  <SelectItem value="failed">Échoué</SelectItem>
+                  <SelectItem value="all">{t.history.filters.allStatuses}</SelectItem>
+                  <SelectItem value="completed">{t.history.filters.completed}</SelectItem>
+                  <SelectItem value="pending">{t.history.filters.pending}</SelectItem>
+                  <SelectItem value="failed">{t.history.filters.failed}</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -281,7 +298,7 @@ export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
                   setFilterStatus("all")
                 }}
               >
-                Réinitialiser
+                {t.history.filters.reset}
               </Button>
             </div>
           </CardContent>
@@ -296,12 +313,12 @@ export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
                   <Clock className="h-12 w-12 mx-auto" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-400 mb-2">
-                  Aucune transaction trouvée
+                  {t.history.noTransactions}
                 </h3>
                 <p className="text-gray-500 dark:text-gray-500">
                   {searchTerm || filterType !== "all" || filterCrypto !== "all" || filterStatus !== "all"
-                    ? "Essayez de modifier vos filtres de recherche"
-                    : "Vos transactions apparaîtront ici une fois que vous en aurez effectué"}
+                    ? t.history.noTransactionsFiltered
+                    : t.history.noTransactionsDescription}
                 </p>
               </CardContent>
             </Card>
@@ -336,7 +353,7 @@ export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
                           </Badge>
                         </div>
                         <div className="text-sm text-gray-600 dark:text-gray-400">
-                          {transaction.type === "receive" ? "Reçu de" : "Envoyé à"}: {transaction.address.slice(0, 20)}
+                          {getTypeLabel(transaction.type)}: {transaction.address.slice(0, 20)}
                           ...
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-500">
@@ -349,11 +366,7 @@ export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
                       <div className="flex items-center space-x-2 mb-2">
                         {getStatusIcon(transaction.status)}
                         <Badge className={getStatusColor(transaction.status)}>
-                          {transaction.status === "completed"
-                            ? "Terminé"
-                            : transaction.status === "pending"
-                              ? "En attente"
-                              : "Échoué"}
+                          {getStatusLabel(transaction.status)}
                         </Badge>
                       </div>
                       <div className="text-lg font-semibold">
@@ -374,7 +387,7 @@ export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
         {filteredTransactions.length > 0 && (
           <Card className="mt-6">
             <CardHeader>
-              <CardTitle>Résumé</CardTitle>
+              <CardTitle>{t.history.summary.title}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -382,25 +395,25 @@ export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
                   <div className="text-2xl font-bold text-green-600">
                     {filteredTransactions.filter((tx) => tx.type === "receive" && tx.status === "completed").length}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Reçues</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">{t.history.summary.received}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">
                     {filteredTransactions.filter((tx) => tx.type === "send" && tx.status === "completed").length}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Envoyées</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">{t.history.summary.sent}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-yellow-600">
                     {filteredTransactions.filter((tx) => tx.status === "pending").length}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">En attente</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">{t.history.summary.pending}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-red-600">
                     {filteredTransactions.filter((tx) => tx.status === "failed").length}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Échouées</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">{t.history.summary.failed}</div>
                 </div>
               </div>
             </CardContent>

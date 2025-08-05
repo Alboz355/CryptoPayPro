@@ -6,63 +6,56 @@
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
-
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
+    --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
     --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
+    --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
   }
 
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
-
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
-
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 84% 4.9%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
-
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
-
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
-
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --ring: 224.3 76.3% 94.1%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
   }
 }
 
@@ -75,51 +68,58 @@
   }
 }
 
-/* iOS Safe Area Support */
-.ios-safe-area {
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
+/* Ensure dark mode consistency */
+.dark {
+  color-scheme: dark;
 }
 
-.ios-safe-top {
-  padding-top: env(safe-area-inset-top);
+.dark body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
 
-/* Custom styles for touch targets on iOS */
-.touch-target {
-  min-width: 44px;
-  min-height: 44px;
+/* Override any white backgrounds in dark mode */
+.dark .bg-white {
+  @apply bg-card;
 }
 
-/* Custom gradient card for dashboard */
-.gradient-card {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-foreground) 100%);
-  color: var(--primary-foreground);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+.dark .text-gray-900 {
+  @apply text-foreground;
 }
 
-.gradient-card .text-muted-foreground {
-  color: rgba(255, 255, 255, 0.7);
+.dark .text-gray-800 {
+  @apply text-foreground;
 }
 
-.gradient-card .text-green-600 {
-  color: #a7f3d0; /* Light green for positive change on dark background */
+.dark .text-gray-700 {
+  @apply text-muted-foreground;
 }
 
-.gradient-card .text-red-600 {
-  color: #fecaca; /* Light red for negative change on dark background */
+.dark .bg-gray-50 {
+  @apply bg-muted;
 }
 
-/* Bottom navigation bar */
-.bottom-nav {
-  @apply fixed bottom-0 left-0 right-0 bg-card border-t shadow-lg z-50;
+.dark .bg-gray-100 {
+  @apply bg-muted;
 }
 
-.bottom-nav .nav-button {
-  @apply flex-1 rounded-none;
+.dark .border-gray-200 {
+  @apply border-border;
 }
 
-.bottom-nav .nav-button.active {
-  @apply text-primary;
+.dark .border-gray-300 {
+  @apply border-border;
+}
+
+/* TPE specific dark mode improvements */
+.dark .tpe-container {
+  @apply bg-background;
+}
+
+.dark .tpe-card {
+  @apply bg-card border-border;
+}
+
+.dark .tpe-status-bar {
+  @apply bg-card border-border;
 }

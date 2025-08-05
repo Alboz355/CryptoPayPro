@@ -36,6 +36,7 @@ export type AppState =
   | "tpe-history"
   | "tpe-settings"
   | "tpe-vat-management"
+  | "tpe-statistics"
 
 interface WalletData {
   mnemonic: string
@@ -81,12 +82,16 @@ export default function CryptoWalletApp() {
         setCurrentPage("dashboard")
       } catch (error) {
         console.error("Erreur lors du chargement du portefeuille:", error)
-        localStorage.removeItem("wallet-data")
-        localStorage.removeItem("onboarding-completed")
-        localStorage.removeItem("user-type")
-        localStorage.removeItem("presentation-seen")
+        // Ne pas supprimer les données, juste revenir à l'onboarding
         setCurrentPage("onboarding")
       }
+    } else if (hasCompletedOnboarding && savedUserType && !hasSeenPresentation) {
+      // Si l'onboarding est fait mais pas la présentation
+      setUserType(savedUserType)
+      setCurrentPage("app-presentation")
+    } else if (hasCompletedOnboarding && !savedUserType) {
+      // Si l'onboarding est fait mais pas le type d'utilisateur
+      setCurrentPage("onboarding")
     } else {
       setCurrentPage("onboarding")
     }
@@ -234,6 +239,7 @@ export default function CryptoWalletApp() {
       case "tpe-history":
       case "tpe-settings":
       case "tpe-vat-management":
+      case "tpe-statistics":
         return (
           <TPEDashboard
             currentPage={currentPage}

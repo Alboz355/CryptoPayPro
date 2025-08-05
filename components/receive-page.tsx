@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Copy, Download, Share2, QrCode } from "lucide-react"
+import { ArrowLeft, Copy, Download, Share2, QrCode } from 'lucide-react'
 import { generateCryptoAddress } from "@/lib/wallet-utils"
 import { useToast } from "@/hooks/use-toast"
+import { useLanguage } from "@/contexts/language-context"
 import type { AppState } from "@/app/page"
 
 interface ReceivePageProps {
@@ -18,6 +19,7 @@ interface ReceivePageProps {
 }
 
 export function ReceivePage({ onNavigate, walletData }: ReceivePageProps) {
+  const { t } = useLanguage()
   const [selectedCrypto, setSelectedCrypto] = useState<"bitcoin" | "ethereum" | "algorand">("bitcoin")
   const [amount, setAmount] = useState("")
   const [qrCodeUrl, setQrCodeUrl] = useState("")
@@ -25,19 +27,19 @@ export function ReceivePage({ onNavigate, walletData }: ReceivePageProps) {
 
   const cryptoInfo = {
     bitcoin: {
-      name: "Bitcoin",
+      name: t.crypto.bitcoin,
       symbol: "BTC",
       color: "bg-orange-500",
       address: walletData?.addresses?.bitcoin || generateCryptoAddress("bitcoin"),
     },
     ethereum: {
-      name: "Ethereum",
+      name: t.crypto.ethereum,
       symbol: "ETH",
       color: "bg-blue-500",
       address: walletData?.addresses?.ethereum || generateCryptoAddress("ethereum"),
     },
     algorand: {
-      name: "Algorand",
+      name: t.crypto.algorand,
       symbol: "ALGO",
       color: "bg-black",
       address: walletData?.addresses?.algorand || generateCryptoAddress("algorand"),
@@ -76,13 +78,13 @@ export function ReceivePage({ onNavigate, walletData }: ReceivePageProps) {
     try {
       await navigator.clipboard.writeText(text)
       toast({
-        title: "Copié !",
-        description: `${label} copié dans le presse-papiers`,
+        title: t.messages.copied,
+        description: `${label} ${t.messages.copiedToClipboard}`,
       })
     } catch (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de copier dans le presse-papiers",
+        title: t.common.error,
+        description: t.messages.cannotCopy,
         variant: "destructive",
       })
     }
@@ -128,7 +130,7 @@ export function ReceivePage({ onNavigate, walletData }: ReceivePageProps) {
           <Button variant="ghost" size="icon" onClick={() => onNavigate("dashboard")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-xl font-semibold">Recevoir</h1>
+          <h1 className="text-xl font-semibold">{t.receive.title}</h1>
           <div className="w-10" />
         </div>
 
@@ -157,20 +159,20 @@ export function ReceivePage({ onNavigate, walletData }: ReceivePageProps) {
             {/* Amount Input (Optional) */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Montant (optionnel)</CardTitle>
+                <CardTitle className="text-lg">{t.receive.amountOptional}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <Label htmlFor="amount">Montant en {currentCrypto.symbol}</Label>
+                  <Label htmlFor="amount">{t.receive.amount} en {currentCrypto.symbol}</Label>
                   <Input
                     id="amount"
                     type="number"
                     step="any"
-                    placeholder={`0.00 ${currentCrypto.symbol}`}
+                    placeholder={`${t.receive.amountPlaceholder} ${currentCrypto.symbol}`}
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                   />
-                  <p className="text-sm text-muted-foreground">Laissez vide pour recevoir n'importe quel montant</p>
+                  <p className="text-sm text-muted-foreground">{t.receive.amountDescription}</p>
                 </div>
               </CardContent>
             </Card>
@@ -180,7 +182,7 @@ export function ReceivePage({ onNavigate, walletData }: ReceivePageProps) {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center">
                   <QrCode className="mr-2 h-5 w-5" />
-                  QR Code
+                  {t.receive.qrCode}
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-center space-y-4">
@@ -199,11 +201,11 @@ export function ReceivePage({ onNavigate, walletData }: ReceivePageProps) {
                 <div className="flex gap-2 justify-center">
                   <Button variant="outline" size="sm" onClick={downloadQRCode}>
                     <Download className="mr-2 h-4 w-4" />
-                    Télécharger
+                    {t.common.download}
                   </Button>
                   <Button variant="outline" size="sm" onClick={shareQRCode}>
                     <Share2 className="mr-2 h-4 w-4" />
-                    Partager
+                    {t.common.share}
                   </Button>
                 </div>
               </CardContent>
@@ -212,7 +214,7 @@ export function ReceivePage({ onNavigate, walletData }: ReceivePageProps) {
             {/* Address */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Adresse de réception</CardTitle>
+                <CardTitle className="text-lg">{t.receive.receiveAddress}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -223,7 +225,7 @@ export function ReceivePage({ onNavigate, walletData }: ReceivePageProps) {
                     onClick={() => copyToClipboard(currentCrypto.address, "Adresse")}
                   >
                     <Copy className="mr-2 h-4 w-4" />
-                    Copier l'adresse
+                    {t.receive.copyAddress}
                   </Button>
                 </div>
               </CardContent>
@@ -233,7 +235,7 @@ export function ReceivePage({ onNavigate, walletData }: ReceivePageProps) {
             <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20">
               <CardContent className="pt-6">
                 <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  ⚠️ Envoyez uniquement du {currentCrypto.name} ({currentCrypto.symbol}) à cette adresse. L'envoi
+                  {t.receive.warning} Envoyez uniquement du {currentCrypto.name} ({currentCrypto.symbol}) à cette adresse. L'envoi
                   d'autres cryptomonnaies pourrait entraîner une perte définitive.
                 </p>
               </CardContent>

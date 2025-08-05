@@ -5,342 +5,413 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, ArrowUpDown, TrendingUp, TrendingDown, RefreshCw } from "lucide-react"
-import { cryptoPriceService } from "@/lib/crypto-prices"
+import {
+  ArrowLeft,
+  ArrowUpDown,
+  Calculator,
+  TrendingUp,
+  TrendingDown,
+  RefreshCw,
+  Clock,
+  DollarSign,
+  Euro,
+  Banknote,
+} from "lucide-react"
 import type { AppState } from "@/app/page"
+import { cryptoService, type CryptoPrice } from "@/lib/crypto-prices"
 
 interface TPEConversionPageProps {
   onNavigate: (page: AppState) => void
 }
 
 export function TPEConversionPage({ onNavigate }: TPEConversionPageProps) {
-  const [fromCurrency, setFromCurrency] = useState("EUR")
-  const [toCurrency, setToCurrency] = useState("bitcoin")
-  const [amount, setAmount] = useState("")
-  const [convertedAmount, setConvertedAmount] = useState("")
-  const [exchangeRate, setExchangeRate] = useState(0)
-  const [loading, setLoading] = useState(false)
+  const [fromAmount, setFromAmount] = useState("")
+  const [toAmount, setToAmount] = useState("")
+  const [fromCurrency, setFromCurrency] = useState<"CHF" | "EUR" | "USD" | "BTC" | "ETH" | "ALGO">("CHF")
+  const [toCurrency, setToCurrency] = useState<"CHF" | "EUR" | "USD" | "BTC" | "ETH" | "ALGO">("BTC")
+  const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice[]>([])
+  const [isLoading, setIsLoading] = useState(false)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+  const [conversionHistory, setConversionHistory] = useState<
+    Array<{
+      id: string
+      from: string
+      to: string
+      fromAmount: number
+      toAmount: number
+      rate: number
+      timestamp: Date
+    }>
+  >([])
 
-  const currencies = [
-    { value: "EUR", label: "Euro", symbol: "€", type: "fiat" },
-    { value: "USD", label: "Dollar US", symbol: "$", type: "fiat" },
-    { value: "CHF", label: "Franc Suisse", symbol: "CHF", type: "fiat" },
-    { value: "bitcoin", label: "Bitcoin", symbol: "BTC", type: "crypto" },
-    { value: "ethereum", label: "Ethereum", symbol: "ETH", type: "crypto" },
-    { value: "algorand", label: "Algorand", symbol: "ALGO", type: "crypto" },
-  ]
-
-  const quickAmounts = [10, 25, 50, 100, 250, 500]
+  // Taux de change fiat (simulation)
+  const fiatRates = {
+    CHF: 1,
+    EUR: 1.08,
+    USD: 1.12,
+  }
 
   useEffect(() => {
-    if (amount && Number.parseFloat(amount) > 0) {
-      convertCurrency()
-    } else {
-      setConvertedAmount("")
+    loadCryptoPrices()
+    loadConversionHistory()
+  }, [])
+
+  useEffect(() => {
+    if (fromAmount && cryptoPrices.length > 0) {
+      calculateConversion()
     }
-  }, [amount, fromCurrency, toCurrency])
+  }, [fromAmount, fromCurrency, toCurrency, cryptoPrices])
 
-  const convertCurrency = async () => {
-    if (!amount || Number.parseFloat(amount) <= 0) return
-
-    setLoading(true)
+  const loadCryptoPrices = async () => {
+    setIsLoading(true)
     try {
-      const rate = await getExchangeRate(fromCurrency, toCurrency)
-      setExchangeRate(rate)
-
-      const converted = Number.parseFloat(amount) * rate
-      setConvertedAmount(converted.toFixed(8))
+      const prices = await cryptoService.getCryptoPrices()
+      setCryptoPrices(prices)
       setLastUpdate(new Date())
     } catch (error) {
-      console.error("Erreur de conversion:", error)
-      setConvertedAmount("Erreur")
+      console.error("Erreur chargement prix:", error)
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
 
-  const getExchangeRate = async (from: string, to: string): Promise<number> => {
-    // Taux de change simulés pour les devises fiat
-    const fiatRates: Record<string, number> = {
-      "EUR-USD": 1.08,
-      "USD-EUR": 0.93,
-      "EUR-CHF": 0.95,
-      "CHF-EUR": 1.05,
-      "USD-CHF": 0.88,
-      "CHF-USD": 1.14,
-    }
-
-    // Si les deux sont des devises fiat
-    if (
-      currencies.find((c) => c.value === from)?.type === "fiat" &&
-      currencies.find((c) => c.value === to)?.type === "fiat"
-    ) {
-      const key = `${from}-${to}`
-      return fiatRates[key] || 1
-    }
-
-    // Si une des devises est crypto, utiliser les prix réels
-    const cryptoPrices = await cryptoPriceService.getCryptoPrices()
-
-    if (
-      currencies.find((c) => c.value === from)?.type === "fiat" &&
-      currencies.find((c) => c.value === to)?.type === "crypto"
-    ) {
-      // Fiat vers crypto
-      const cryptoPrice = cryptoPrices.find((p) => p.id === to)
-      if (!cryptoPrice) throw new Error("Prix crypto non trouvé")
-
-      let fiatInEur = 1
-      if (from !== "EUR") {
-        fiatInEur = fiatRates[`${from}-EUR`] || 1
+  const loadConversionHistory = () => {
+    try {
+      const saved = localStorage.getItem("tpe-conversion-history")
+      if (saved) {
+        const history = JSON.parse(saved).map((item: any) => ({
+          ...item,
+          timestamp: new Date(item.timestamp),
+        }))
+        setConversionHistory(history.slice(0, 5)) // Garder seulement les 5 dernières
       }
+    } catch (error) {
+      console.error("Erreur chargement historique:", error)
+    }
+  }
 
-      return fiatInEur / cryptoPrice.current_price
+  const saveConversionToHistory = (from: string, to: string, fromAmt: number, toAmt: number, rate: number) => {
+    const newConversion = {
+      id: Date.now().toString(),
+      from,
+      to,
+      fromAmount: fromAmt,
+      toAmount: toAmt,
+      rate,
+      timestamp: new Date(),
     }
 
-    if (
-      currencies.find((c) => c.value === from)?.type === "crypto" &&
-      currencies.find((c) => c.value === to)?.type === "fiat"
-    ) {
-      // Crypto vers fiat
-      const cryptoPrice = cryptoPrices.find((p) => p.id === from)
-      if (!cryptoPrice) throw new Error("Prix crypto non trouvé")
+    const updatedHistory = [newConversion, ...conversionHistory].slice(0, 10)
+    setConversionHistory(updatedHistory)
 
-      let eurToFiat = 1
-      if (to !== "EUR") {
-        eurToFiat = fiatRates[`EUR-${to}`] || 1
+    try {
+      localStorage.setItem("tpe-conversion-history", JSON.stringify(updatedHistory))
+    } catch (error) {
+      console.error("Erreur sauvegarde historique:", error)
+    }
+  }
+
+  const calculateConversion = () => {
+    const amount = Number.parseFloat(fromAmount)
+    if (isNaN(amount) || amount <= 0) {
+      setToAmount("")
+      return
+    }
+
+    let result = 0
+    let rate = 0
+
+    // Conversion crypto vers fiat
+    if (["BTC", "ETH", "ALGO"].includes(fromCurrency) && ["CHF", "EUR", "USD"].includes(toCurrency)) {
+      const cryptoPrice = cryptoPrices.find((p) => p.symbol.toUpperCase() === fromCurrency)
+      if (cryptoPrice) {
+        const chfValue = amount * cryptoPrice.current_price
+        result = chfValue * fiatRates[toCurrency as keyof typeof fiatRates]
+        rate = cryptoPrice.current_price * fiatRates[toCurrency as keyof typeof fiatRates]
       }
-
-      return cryptoPrice.current_price * eurToFiat
+    }
+    // Conversion fiat vers crypto
+    else if (["CHF", "EUR", "USD"].includes(fromCurrency) && ["BTC", "ETH", "ALGO"].includes(toCurrency)) {
+      const cryptoPrice = cryptoPrices.find((p) => p.symbol.toUpperCase() === toCurrency)
+      if (cryptoPrice) {
+        const chfValue = amount / fiatRates[fromCurrency as keyof typeof fiatRates]
+        result = chfValue / cryptoPrice.current_price
+        rate = 1 / (cryptoPrice.current_price / fiatRates[fromCurrency as keyof typeof fiatRates])
+      }
+    }
+    // Conversion fiat vers fiat
+    else if (["CHF", "EUR", "USD"].includes(fromCurrency) && ["CHF", "EUR", "USD"].includes(toCurrency)) {
+      result =
+        (amount / fiatRates[fromCurrency as keyof typeof fiatRates]) * fiatRates[toCurrency as keyof typeof fiatRates]
+      rate = fiatRates[toCurrency as keyof typeof fiatRates] / fiatRates[fromCurrency as keyof typeof fiatRates]
+    }
+    // Conversion crypto vers crypto
+    else if (["BTC", "ETH", "ALGO"].includes(fromCurrency) && ["BTC", "ETH", "ALGO"].includes(toCurrency)) {
+      const fromPrice = cryptoPrices.find((p) => p.symbol.toUpperCase() === fromCurrency)
+      const toPrice = cryptoPrices.find((p) => p.symbol.toUpperCase() === toCurrency)
+      if (fromPrice && toPrice) {
+        result = (amount * fromPrice.current_price) / toPrice.current_price
+        rate = fromPrice.current_price / toPrice.current_price
+      }
     }
 
-    // Crypto vers crypto
-    if (
-      currencies.find((c) => c.value === from)?.type === "crypto" &&
-      currencies.find((c) => c.value === to)?.type === "crypto"
-    ) {
-      const fromPrice = cryptoPrices.find((p) => p.id === from)?.current_price || 1
-      const toPrice = cryptoPrices.find((p) => p.id === to)?.current_price || 1
-      return fromPrice / toPrice
-    }
+    setToAmount(result.toFixed(["BTC", "ETH", "ALGO"].includes(toCurrency) ? 8 : 2))
 
-    return 1
+    // Sauvegarder dans l'historique si c'est une conversion valide
+    if (result > 0) {
+      saveConversionToHistory(fromCurrency, toCurrency, amount, result, rate)
+    }
   }
 
   const swapCurrencies = () => {
-    const temp = fromCurrency
+    const tempCurrency = fromCurrency
+    const tempAmount = fromAmount
+
     setFromCurrency(toCurrency)
-    setToCurrency(temp)
-    setAmount(convertedAmount)
-    setConvertedAmount(amount)
+    setToCurrency(tempCurrency)
+    setFromAmount(toAmount)
+    setToAmount(tempAmount)
   }
 
-  const setQuickAmount = (quickAmount: number) => {
-    setAmount(quickAmount.toString())
-  }
-
-  const refreshRates = () => {
-    if (amount && Number.parseFloat(amount) > 0) {
-      convertCurrency()
+  const getCurrencyIcon = (currency: string) => {
+    switch (currency) {
+      case "CHF":
+        return <Banknote className="h-4 w-4" />
+      case "EUR":
+        return <Euro className="h-4 w-4" />
+      case "USD":
+        return <DollarSign className="h-4 w-4" />
+      default:
+        return <div className="w-4 h-4 bg-orange-500 rounded-full" />
     }
   }
 
-  const fromCurrencyInfo = currencies.find((c) => c.value === fromCurrency)
-  const toCurrencyInfo = currencies.find((c) => c.value === toCurrency)
+  const formatCurrency = (amount: number, currency: string) => {
+    if (["BTC", "ETH", "ALGO"].includes(currency)) {
+      return `${amount.toFixed(8)} ${currency}`
+    }
+    return new Intl.NumberFormat("fr-CH", {
+      style: "currency",
+      currency: currency === "CHF" ? "CHF" : currency === "EUR" ? "EUR" : "USD",
+    }).format(amount)
+  }
+
+  const quickAmounts = [10, 50, 100, 500, 1000]
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-md mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" size="icon" onClick={() => onNavigate("tpe")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-xl font-semibold">Convertisseur</h1>
-          <Button variant="ghost" size="icon" onClick={refreshRates}>
-            <RefreshCw className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} />
-          </Button>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+      {/* Header */}
+      <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center space-x-3">
+            <Button variant="ghost" size="icon" onClick={() => onNavigate("tpe")}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Convertisseur</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Conversion crypto/fiat en temps réel</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button variant="outline" size="sm" onClick={loadCryptoPrices} disabled={isLoading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+              Actualiser
+            </Button>
+            {lastUpdate && (
+              <Badge variant="outline" className="text-xs">
+                <Clock className="h-3 w-3 mr-1" />
+                {lastUpdate.toLocaleTimeString("fr-CH", { hour: "2-digit", minute: "2-digit" })}
+              </Badge>
+            )}
+          </div>
         </div>
+      </div>
 
-        {/* Conversion Card */}
+      <div className="p-4 space-y-6">
+        {/* Convertisseur principal */}
         <Card>
           <CardHeader>
-            <CardTitle>Conversion de devises</CardTitle>
-            {lastUpdate && (
-              <p className="text-sm text-muted-foreground">Dernière mise à jour: {lastUpdate.toLocaleTimeString()}</p>
-            )}
+            <CardTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5" />
+              Convertisseur de devises
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* From Currency */}
+            {/* Montant source */}
             <div className="space-y-2">
-              <Label>De</Label>
-              <div className="flex gap-2">
-                <Select value={fromCurrency} onValueChange={setFromCurrency}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currencies.map((currency) => (
-                      <SelectItem key={currency.value} value={currency.value}>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={currency.type === "crypto" ? "default" : "secondary"}>
-                            {currency.symbol}
-                          </Badge>
-                          {currency.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="number"
-                  step="any"
-                  placeholder="0.00"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="flex-1"
-                />
+              <Label htmlFor="fromAmount">De</Label>
+              <div className="flex space-x-2">
+                <div className="flex-1">
+                  <Input
+                    id="fromAmount"
+                    type="number"
+                    placeholder="0.00"
+                    value={fromAmount}
+                    onChange={(e) => setFromAmount(e.target.value)}
+                    className="text-lg"
+                  />
+                </div>
+                <select
+                  value={fromCurrency}
+                  onChange={(e) => setFromCurrency(e.target.value as any)}
+                  className="px-3 py-2 border border-gray-300 rounded-md bg-white dark:bg-gray-800 dark:border-gray-600"
+                >
+                  <option value="CHF">CHF</option>
+                  <option value="EUR">EUR</option>
+                  <option value="USD">USD</option>
+                  <option value="BTC">BTC</option>
+                  <option value="ETH">ETH</option>
+                  <option value="ALGO">ALGO</option>
+                </select>
               </div>
             </div>
 
-            {/* Swap Button */}
+            {/* Bouton d'échange */}
             <div className="flex justify-center">
               <Button variant="outline" size="icon" onClick={swapCurrencies}>
                 <ArrowUpDown className="h-4 w-4" />
               </Button>
             </div>
 
-            {/* To Currency */}
+            {/* Montant destination */}
             <div className="space-y-2">
-              <Label>Vers</Label>
-              <div className="flex gap-2">
-                <Select value={toCurrency} onValueChange={setToCurrency}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currencies.map((currency) => (
-                      <SelectItem key={currency.value} value={currency.value}>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={currency.type === "crypto" ? "default" : "secondary"}>
-                            {currency.symbol}
-                          </Badge>
-                          {currency.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="flex-1 p-3 bg-muted rounded-md">
-                  <div className="text-lg font-mono">
-                    {loading ? (
-                      <div className="flex items-center">
-                        <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                        Calcul...
-                      </div>
-                    ) : (
-                      convertedAmount || "0.00"
-                    )}
-                  </div>
+              <Label htmlFor="toAmount">Vers</Label>
+              <div className="flex space-x-2">
+                <div className="flex-1">
+                  <Input
+                    id="toAmount"
+                    type="text"
+                    placeholder="0.00"
+                    value={toAmount}
+                    readOnly
+                    className="text-lg bg-gray-50 dark:bg-gray-800"
+                  />
                 </div>
+                <select
+                  value={toCurrency}
+                  onChange={(e) => setToCurrency(e.target.value as any)}
+                  className="px-3 py-2 border border-gray-300 rounded-md bg-white dark:bg-gray-800 dark:border-gray-600"
+                >
+                  <option value="CHF">CHF</option>
+                  <option value="EUR">EUR</option>
+                  <option value="USD">USD</option>
+                  <option value="BTC">BTC</option>
+                  <option value="ETH">ETH</option>
+                  <option value="ALGO">ALGO</option>
+                </select>
               </div>
             </div>
 
-            {/* Exchange Rate */}
-            {exchangeRate > 0 && (
-              <div className="p-3 bg-muted rounded-lg">
-                <div className="text-sm text-muted-foreground">Taux de change</div>
-                <div className="font-mono">
-                  1 {fromCurrencyInfo?.symbol} = {exchangeRate.toFixed(8)} {toCurrencyInfo?.symbol}
-                </div>
+            {/* Montants rapides */}
+            <div className="space-y-2">
+              <Label>Montants rapides ({fromCurrency})</Label>
+              <div className="flex flex-wrap gap-2">
+                {quickAmounts.map((amount) => (
+                  <Button key={amount} variant="outline" size="sm" onClick={() => setFromAmount(amount.toString())}>
+                    {amount}
+                  </Button>
+                ))}
               </div>
-            )}
+            </div>
           </CardContent>
         </Card>
 
-        {/* Quick Amount Buttons */}
+        {/* Prix des cryptos */}
         <Card>
           <CardHeader>
-            <CardTitle>Montants rapides</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Prix des cryptomonnaies
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-2">
-              {quickAmounts.map((quickAmount) => (
-                <Button key={quickAmount} variant="outline" size="sm" onClick={() => setQuickAmount(quickAmount)}>
-                  {quickAmount} {fromCurrencyInfo?.symbol}
-                </Button>
+            <div className="space-y-3">
+              {cryptoPrices.map((crypto) => (
+                <div
+                  key={crypto.id}
+                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                >
+                  <div className="flex items-center space-x-3">
+                    <img src={crypto.image || "/placeholder.svg"} alt={crypto.name} className="w-8 h-8 rounded-full" />
+                    <div>
+                      <p className="font-medium">{crypto.name}</p>
+                      <p className="text-sm text-gray-500">{crypto.symbol.toUpperCase()}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">{cryptoService.formatPrice(crypto.current_price)}</p>
+                    <div className="flex items-center space-x-1">
+                      {crypto.price_change_percentage_24h >= 0 ? (
+                        <TrendingUp className="h-3 w-3 text-green-500" />
+                      ) : (
+                        <TrendingDown className="h-3 w-3 text-red-500" />
+                      )}
+                      <span
+                        className={`text-sm ${
+                          crypto.price_change_percentage_24h >= 0 ? "text-green-500" : "text-red-500"
+                        }`}
+                      >
+                        {crypto.price_change_percentage_24h.toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* Market Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Informations du marché</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Bitcoin (BTC)</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono">65,000 €</span>
-                  <Badge variant="secondary" className="text-green-600">
-                    <TrendingUp className="w-3 h-3 mr-1" />
-                    +2.5%
-                  </Badge>
-                </div>
+        {/* Historique des conversions */}
+        {conversionHistory.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Historique des conversions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {conversionHistory.map((conversion) => (
+                  <div
+                    key={conversion.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-1">
+                        {getCurrencyIcon(conversion.from)}
+                        <ArrowUpDown className="h-3 w-3 text-gray-400" />
+                        {getCurrencyIcon(conversion.to)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {formatCurrency(conversion.fromAmount, conversion.from)} →{" "}
+                          {formatCurrency(conversion.toAmount, conversion.to)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {conversion.timestamp.toLocaleString("fr-CH", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      Taux: {conversion.rate.toFixed(6)}
+                    </Badge>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Ethereum (ETH)</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono">3,200 €</span>
-                  <Badge variant="secondary" className="text-red-600">
-                    <TrendingDown className="w-3 h-3 mr-1" />
-                    -1.2%
-                  </Badge>
-                </div>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Algorand (ALGO)</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono">0.25 €</span>
-                  <Badge variant="secondary" className="text-green-600">
-                    <TrendingUp className="w-3 h-3 mr-1" />
-                    +5.8%
-                  </Badge>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Conversion History */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Historique des conversions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span>100 EUR → 0.00153846 BTC</span>
-                <span className="text-muted-foreground">Il y a 5 min</span>
-              </div>
-              <div className="flex justify-between">
-                <span>50 USD → 0.015625 ETH</span>
-                <span className="text-muted-foreground">Il y a 12 min</span>
-              </div>
-              <div className="flex justify-between">
-                <span>200 CHF → 800 ALGO</span>
-                <span className="text-muted-foreground">Il y a 1h</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      {/* Bottom spacing for navigation */}
+      <div className="h-20"></div>
     </div>
   )
 }
