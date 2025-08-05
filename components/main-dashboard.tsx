@@ -1,71 +1,97 @@
-'use client'
+"use client"
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Send, Download, ShoppingCart, CreditCard, Bell, Settings, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, XCircle, TrendingUp, TrendingDown, DollarSign, Target, Users, BarChart3 } from 'lucide-react'
-import { useLanguage } from '@/contexts/language-context'
-import { getTranslation } from '@/lib/i18n'
-import { CryptoList } from './crypto-list'
-import { RealTimePrices } from './real-time-prices'
+import { useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  Send,
+  Download,
+  ShoppingCart,
+  CreditCard,
+  Bell,
+  Settings,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Clock,
+  CheckCircle,
+  XCircle,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Target,
+  Users,
+  BarChart3,
+} from "lucide-react"
+import { useLanguage } from "@/contexts/language-context"
+import { getTranslation } from "@/lib/i18n"
+import { CryptoList } from "./crypto-list"
+import { RealTimePrices } from "./real-time-prices"
+import type { AppState, UserType, WalletData } from "@/app/page"
 
 interface MainDashboardProps {
-  userType: 'individual' | 'business'
-  onNavigate: (page: string) => void
+  userType: UserType | null
+  onNavigate: (page: AppState) => void
+  walletData: WalletData | null
+  onShowMtPelerin: () => void
+  onShowPriceAlert: () => void
 }
 
-export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
+export function MainDashboard({
+  userType,
+  onNavigate,
+  walletData,
+  onShowMtPelerin,
+  onShowPriceAlert,
+}: MainDashboardProps) {
   const { language } = useLanguage()
   const t = getTranslation(language)
-  
+
   const [totalBalance] = useState(12847.32)
   const [monthlyChange] = useState(8.5)
   const [monthlyTransactions] = useState(47)
-  const [monthlyVolume] = useState(8420.50)
+  const [monthlyVolume] = useState(8420.5)
   const [monthlyGoal] = useState(75)
   const [clientsCount] = useState(156)
 
   const recentTransactions = [
     {
-      id: '1',
-      type: 'received' as const,
-      crypto: 'BTC',
+      id: "1",
+      type: "received" as const,
+      crypto: "BTC",
       amount: 0.0234,
-      value: 1250.00,
-      from: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+      value: 1250.0,
+      from: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
       timestamp: new Date(Date.now() - 1000 * 60 * 30),
-      status: 'completed' as const
+      status: "completed" as const,
     },
     {
-      id: '2',
-      type: 'sent' as const,
-      crypto: 'ETH',
+      id: "2",
+      type: "sent" as const,
+      crypto: "ETH",
       amount: 0.85,
-      value: 2100.00,
-      to: '0x742d35Cc6634C0532925a3b8D4C0C8b3C2e1e3e3',
+      value: 2100.0,
+      to: "0x742d35Cc6634C0532925a3b8D4C0C8b3C2e1e3e3",
       timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-      status: 'completed' as const
+      status: "completed" as const,
     },
     {
-      id: '3',
-      type: 'received' as const,
-      crypto: 'ALGO',
+      id: "3",
+      type: "received" as const,
+      crypto: "ALGO",
       amount: 500,
-      value: 125.00,
-      from: 'ALGO1234567890ABCDEF',
+      value: 125.0,
+      from: "ALGO1234567890ABCDEF",
       timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6),
-      status: 'pending' as const
-    }
+      status: "pending" as const,
+    },
   ]
 
   const formatTimeAgo = (date: Date) => {
     const now = new Date()
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
-    
+
     if (diffInMinutes < 60) {
       return `${diffInMinutes} ${diffInMinutes === 1 ? t.time.minute : t.time.minutes} ${t.time.ago}`
     } else if (diffInMinutes < 1440) {
@@ -79,11 +105,11 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'completed':
+      case "completed":
         return <CheckCircle className="h-4 w-4 text-green-500" />
-      case 'pending':
+      case "pending":
         return <Clock className="h-4 w-4 text-yellow-500" />
-      case 'failed':
+      case "failed":
         return <XCircle className="h-4 w-4 text-red-500" />
       default:
         return <Clock className="h-4 w-4 text-gray-500" />
@@ -92,11 +118,11 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'completed':
+      case "completed":
         return t.dashboard.transactions.completed
-      case 'pending':
+      case "pending":
         return t.dashboard.transactions.pending
-      case 'failed':
+      case "failed":
         return t.dashboard.transactions.failed
       default:
         return status
@@ -110,17 +136,17 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">
-              {userType === 'business' ? t.dashboard.professionalTitle : t.dashboard.title}
+              {userType === "merchant" ? t.dashboard.professionalTitle : t.dashboard.title}
             </h1>
             <p className="text-muted-foreground">
-              {userType === 'business' ? t.dashboard.professionalSubtitle : t.dashboard.subtitle}
+              {userType === "merchant" ? t.dashboard.professionalSubtitle : t.dashboard.subtitle}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => onNavigate('price-alerts')}>
+            <Button variant="outline" size="icon" onClick={onShowPriceAlert}>
               <Bell className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="icon" onClick={() => onNavigate('settings')}>
+            <Button variant="outline" size="icon" onClick={() => onNavigate("settings")}>
               <Settings className="h-4 w-4" />
             </Button>
           </div>
@@ -132,15 +158,18 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-blue-100 mb-2">{t.dashboard.totalBalance}</p>
-                <p className="text-3xl font-bold">CHF {totalBalance.toLocaleString('fr-CH', { minimumFractionDigits: 2 })}</p>
+                <p className="text-3xl font-bold">
+                  CHF {totalBalance.toLocaleString("fr-CH", { minimumFractionDigits: 2 })}
+                </p>
                 <div className="flex items-center gap-2 mt-2">
                   {monthlyChange >= 0 ? (
                     <TrendingUp className="h-4 w-4 text-green-300" />
                   ) : (
                     <TrendingDown className="h-4 w-4 text-red-300" />
                   )}
-                  <span className={`text-sm ${monthlyChange >= 0 ? 'text-green-300' : 'text-red-300'}`}>
-                    {monthlyChange >= 0 ? '+' : ''}{monthlyChange}% {t.time.thisMonth}
+                  <span className={`text-sm ${monthlyChange >= 0 ? "text-green-300" : "text-red-300"}`}>
+                    {monthlyChange >= 0 ? "+" : ""}
+                    {monthlyChange}% {t.time.thisMonth}
                   </span>
                 </div>
               </div>
@@ -156,42 +185,30 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Button 
-            variant="outline" 
-            className="h-20 flex-col gap-2"
-            onClick={() => onNavigate('send')}
-          >
+          <Button variant="outline" className="h-20 flex-col gap-2 bg-transparent" onClick={() => onNavigate("send")}>
             <Send className="h-6 w-6" />
             <span>{t.dashboard.quickActions.send}</span>
           </Button>
-          <Button 
-            variant="outline" 
-            className="h-20 flex-col gap-2"
-            onClick={() => onNavigate('receive')}
+          <Button
+            variant="outline"
+            className="h-20 flex-col gap-2 bg-transparent"
+            onClick={() => onNavigate("receive")}
           >
             <Download className="h-6 w-6" />
             <span>{t.dashboard.quickActions.receive}</span>
           </Button>
-          <Button 
-            variant="outline" 
-            className="h-20 flex-col gap-2"
-            onClick={() => onNavigate('buy')}
-          >
+          <Button variant="outline" className="h-20 flex-col gap-2 bg-transparent" onClick={onShowMtPelerin}>
             <ShoppingCart className="h-6 w-6" />
             <span>{t.dashboard.quickActions.buy}</span>
           </Button>
-          <Button 
-            variant="outline" 
-            className="h-20 flex-col gap-2"
-            onClick={() => onNavigate('tpe')}
-          >
+          <Button variant="outline" className="h-20 flex-col gap-2 bg-transparent" onClick={() => onNavigate("tpe")}>
             <CreditCard className="h-6 w-6" />
             <span>{t.dashboard.quickActions.tpeMode}</span>
           </Button>
         </div>
 
         {/* Statistics Cards for Business Users */}
-        {userType === 'business' && (
+        {userType === "merchant" && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="p-4">
@@ -206,7 +223,7 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -215,12 +232,12 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">{t.dashboard.statistics.volumeExchanged}</p>
-                    <p className="text-2xl font-bold">CHF {monthlyVolume.toLocaleString('fr-CH')}</p>
+                    <p className="text-2xl font-bold">CHF {monthlyVolume.toLocaleString("fr-CH")}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -234,7 +251,7 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -269,7 +286,7 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>{t.dashboard.recentTransactions}</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => onNavigate('history')}>
+              <Button variant="ghost" size="sm" onClick={() => onNavigate("history")}>
                 {t.dashboard.transactions.viewAll}
               </Button>
             </CardHeader>
@@ -278,12 +295,12 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
                 {recentTransactions.map((tx) => (
                   <div key={tx.id} className="flex items-center justify-between p-3 rounded-lg border">
                     <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-full ${
-                        tx.type === 'received' 
-                          ? 'bg-green-100 dark:bg-green-900' 
-                          : 'bg-red-100 dark:bg-red-900'
-                      }`}>
-                        {tx.type === 'received' ? (
+                      <div
+                        className={`p-2 rounded-full ${
+                          tx.type === "received" ? "bg-green-100 dark:bg-green-900" : "bg-red-100 dark:bg-red-900"
+                        }`}
+                      >
+                        {tx.type === "received" ? (
                           <ArrowDownLeft className="h-4 w-4 text-green-600 dark:text-green-400" />
                         ) : (
                           <ArrowUpRight className="h-4 w-4 text-red-600 dark:text-red-400" />
@@ -292,21 +309,21 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-medium">
-                            {tx.type === 'received' ? t.dashboard.transactions.received : t.dashboard.transactions.sent} {tx.crypto}
+                            {tx.type === "received" ? t.dashboard.transactions.received : t.dashboard.transactions.sent}{" "}
+                            {tx.crypto}
                           </p>
                           {getStatusIcon(tx.status)}
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {formatTimeAgo(tx.timestamp)}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{formatTimeAgo(tx.timestamp)}</p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="font-medium">
-                        {tx.type === 'received' ? '+' : '-'}{tx.amount} {tx.crypto}
+                        {tx.type === "received" ? "+" : "-"}
+                        {tx.amount} {tx.crypto}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        CHF {tx.value.toLocaleString('fr-CH', { minimumFractionDigits: 2 })}
+                        CHF {tx.value.toLocaleString("fr-CH", { minimumFractionDigits: 2 })}
                       </p>
                     </div>
                   </div>

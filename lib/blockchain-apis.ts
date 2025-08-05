@@ -1,4 +1,6 @@
-// Services pour interagir avec les APIs blockchain - VERSION OPTIMISÉE TIMEOUT
+// Services pour interagir avec les APIs blockchain - VERSION SÉCURISÉE
+
+import { cryptoService } from "./crypto-prices"
 
 export interface BlockchainBalance {
   symbol: string
@@ -32,16 +34,19 @@ export interface CryptoBalance {
   algorand: string
 }
 
-// Service Ethereum optimisé avec timeout réduit
+// Service Ethereum sécurisé avec clé d'API depuis les variables d'environnement
 export class EthereumService {
-  private infuraKey = "eae8428d4ae4477e946ac8f8301f2bce"
+  private infuraKey = process.env.NEXT_PUBLIC_INFURA_API_KEY || ""
   private infuraUrl = `https://mainnet.infura.io/v3/${this.infuraKey}`
 
   async getBalance(address: string): Promise<BlockchainBalance> {
     try {
-      console.log(`⚡ Récupération rapide du solde ETH pour: ${address}`)
+      console.log(`⚡ Récupération du solde ETH pour: ${address}`)
 
-      // Timeout réduit à 3 secondes
+      if (!this.infuraKey) {
+        throw new Error("Clé API Infura manquante")
+      }
+
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 3000)
 
@@ -76,8 +81,9 @@ export class EthereumService {
       const balanceWei = Number.parseInt(balanceData.result, 16)
       const balanceETH = (balanceWei / 1e18).toFixed(6)
 
-      // Prix ETH par défaut (pas de requête supplémentaire pour éviter timeout)
-      const ethPrice = 2650 // Prix fixe pour éviter les timeouts
+      // Obtenir le prix ETH en temps réel
+      const prices = await cryptoService.getCryptoPrices()
+      const ethPrice = prices.find((p) => p.id === "ethereum")?.current_price || 2650
       const balanceUSD = (Number.parseFloat(balanceETH) * ethPrice).toFixed(2)
 
       console.log(`✅ Solde ETH récupéré: ${balanceETH} ETH ($${balanceUSD})`)
@@ -101,10 +107,10 @@ export class EthereumService {
 
   async getTransactions(address: string): Promise<BlockchainTransaction[]> {
     try {
-      console.log(`⚡ Récupération rapide des transactions ETH...`)
+      console.log(`⚡ Récupération des transactions ETH...`)
 
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 2000) // 2s seulement
+      const timeoutId = setTimeout(() => controller.abort(), 2000)
 
       const response = await fetch(
         `https://api.etherscan.io/api?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=desc&page=1&offset=5`,
@@ -126,7 +132,9 @@ export class EthereumService {
         return []
       }
 
-      const ethPrice = 2650 // Prix fixe
+      // Obtenir le prix ETH en temps réel
+      const prices = await cryptoService.getCryptoPrices()
+      const ethPrice = prices.find((p) => p.id === "ethereum")?.current_price || 2650
 
       return data.result.slice(0, 5).map((tx: any) => {
         const valueETH = (Number.parseInt(tx.value) / 1e18).toFixed(6)
@@ -161,11 +169,11 @@ export class EthereumService {
   }
 }
 
-// Service Bitcoin optimisé
+// Service Bitcoin avec prix en temps réel
 export class BitcoinService {
   async getBalance(address: string): Promise<BlockchainBalance> {
     try {
-      console.log(`⚡ Récupération rapide du solde BTC pour: ${address}`)
+      console.log(`⚡ Récupération du solde BTC pour: ${address}`)
 
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 3000)
@@ -185,7 +193,9 @@ export class BitcoinService {
       const balanceSatoshis = data.balance || 0
       const balanceBTC = (balanceSatoshis / 1e8).toFixed(8)
 
-      const btcPrice = 43000 // Prix fixe
+      // Obtenir le prix BTC en temps réel
+      const prices = await cryptoService.getCryptoPrices()
+      const btcPrice = prices.find((p) => p.id === "bitcoin")?.current_price || 43000
       const balanceUSD = (Number.parseFloat(balanceBTC) * btcPrice).toFixed(2)
 
       console.log(`✅ Solde BTC récupéré: ${balanceBTC} BTC ($${balanceUSD})`)
@@ -229,7 +239,9 @@ export class BitcoinService {
         return []
       }
 
-      const btcPrice = 43000
+      // Obtenir le prix BTC en temps réel
+      const prices = await cryptoService.getCryptoPrices()
+      const btcPrice = prices.find((p) => p.id === "bitcoin")?.current_price || 43000
 
       return data.txs.slice(0, 5).map((tx: any) => {
         let value = 0
@@ -284,14 +296,18 @@ export class BitcoinService {
   }
 }
 
-// Service ERC-20 optimisé
+// Service ERC-20 avec prix en temps réel
 export class ERC20Service {
-  private infuraKey = "eae8428d4ae4477e946ac8f8301f2bce"
+  private infuraKey = process.env.NEXT_PUBLIC_INFURA_API_KEY || ""
   private infuraUrl = `https://mainnet.infura.io/v3/${this.infuraKey}`
   private usdtContract = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
 
   async getUSDTBalance(address: string): Promise<BlockchainBalance> {
     try {
+      if (!this.infuraKey) {
+        throw new Error("Clé API Infura manquante")
+      }
+
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 3000)
 
@@ -350,16 +366,15 @@ export class ERC20Service {
   }
 
   async getUSDTTransactions(address: string): Promise<BlockchainTransaction[]> {
-    // Retourner vide pour éviter les timeouts
     return []
   }
 }
 
-// Service Algorand optimisé
+// Service Algorand avec prix en temps réel
 export class AlgorandService {
   async getBalance(address: string): Promise<BlockchainBalance> {
     try {
-      console.log(`⚡ Récupération rapide du solde ALGO pour: ${address}`)
+      console.log(`⚡ Récupération du solde ALGO pour: ${address}`)
 
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 3000)
@@ -379,7 +394,9 @@ export class AlgorandService {
       const balanceMicroAlgos = data.amount || 0
       const balanceALGO = (balanceMicroAlgos / 1e6).toFixed(6)
 
-      const algoPrice = 1.5 // Prix fixe
+      // Obtenir le prix ALGO en temps réel
+      const prices = await cryptoService.getCryptoPrices()
+      const algoPrice = prices.find((p) => p.id === "algorand")?.current_price || 1.5
       const balanceUSD = (Number.parseFloat(balanceALGO) * algoPrice).toFixed(2)
 
       console.log(`✅ Solde ALGO récupéré: ${balanceALGO} ALGO ($${balanceUSD})`)
@@ -423,7 +440,9 @@ export class AlgorandService {
         return []
       }
 
-      const algoPrice = 1.5
+      // Obtenir le prix ALGO en temps réel
+      const prices = await cryptoService.getCryptoPrices()
+      const algoPrice = prices.find((p) => p.id === "algorand")?.current_price || 1.5
 
       return data.transactions.slice(0, 5).map((tx: any) => {
         const valueALGO = (tx.amount / 1e6).toFixed(6)
@@ -458,7 +477,7 @@ export class AlgorandService {
   }
 }
 
-// Service principal optimisé
+// Service principal avec prix en temps réel
 export class BlockchainManager {
   private ethereumService = new EthereumService()
   private bitcoinService = new BitcoinService()
@@ -466,21 +485,19 @@ export class BlockchainManager {
   private algorandService = new AlgorandService()
 
   async getAllBalances(addresses: { bitcoin: string; ethereum: string; algorand: string }): Promise<CryptoBalance> {
-    console.log("⚡ === CHARGEMENT RAPIDE DES SOLDES ===")
+    console.log("⚡ === CHARGEMENT DES SOLDES AVEC PRIX TEMPS RÉEL ===")
 
     try {
-      // Timeout global de 5 secondes
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error("Timeout global")), 5000)
       })
 
-      // Lancer toutes les requêtes en parallèle avec fallbacks immédiats
       const balancePromises = [
-        this.ethereumService.getBalance(addresses.eth).catch(() => ({
+        this.ethereumService.getBalance(addresses.ethereum).catch(() => ({
           symbol: "ETH",
           balance: "0.000000",
           balanceUSD: "0.00",
-          address: addresses.eth,
+          address: addresses.ethereum,
         })),
         this.bitcoinService.getBalance(addresses.bitcoin).catch(() => ({
           symbol: "BTC",
@@ -488,11 +505,11 @@ export class BlockchainManager {
           balanceUSD: "0.00",
           address: addresses.bitcoin,
         })),
-        this.erc20Service.getUSDTBalance(addresses.eth).catch(() => ({
+        this.erc20Service.getUSDTBalance(addresses.ethereum).catch(() => ({
           symbol: "USDT",
           balance: "0.00",
           balanceUSD: "0.00",
-          address: addresses.eth,
+          address: addresses.ethereum,
         })),
         this.algorandService.getBalance(addresses.algorand).catch(() => ({
           symbol: "ALGO",
@@ -502,10 +519,9 @@ export class BlockchainManager {
         })),
       ]
 
-      // Course entre les promesses et le timeout
       const results = await Promise.race([Promise.all(balancePromises), timeoutPromise])
 
-      console.log("✅ Soldes chargés rapidement:", results)
+      console.log("✅ Soldes chargés avec prix temps réel:", results)
       return {
         bitcoin: results.find((balance) => balance.symbol === "BTC")?.balance || "0.00000000",
         ethereum: results.find((balance) => balance.symbol === "ETH")?.balance || "0.000000000000000000",
@@ -514,7 +530,6 @@ export class BlockchainManager {
     } catch (error) {
       console.log("⚠️ Utilisation des soldes par défaut:", error.message)
 
-      // Retourner des soldes par défaut immédiatement
       return {
         bitcoin: "0.00000000",
         ethereum: "0.000000000000000000",
@@ -526,7 +541,7 @@ export class BlockchainManager {
   async getAllTransactions(addresses: { bitcoin: string; ethereum: string; algorand: string }): Promise<
     BlockchainTransaction[]
   > {
-    console.log("⚡ Chargement rapide des transactions...")
+    console.log("⚡ Chargement des transactions...")
 
     try {
       const timeoutPromise = new Promise<never>((_, reject) => {
@@ -534,7 +549,7 @@ export class BlockchainManager {
       })
 
       const transactionPromises = [
-        this.ethereumService.getTransactions(addresses.eth).catch(() => []),
+        this.ethereumService.getTransactions(addresses.ethereum).catch(() => []),
         this.bitcoinService.getTransactions(addresses.bitcoin).catch(() => []),
         this.algorandService.getTransactions(addresses.algorand).catch(() => []),
       ]
@@ -544,7 +559,7 @@ export class BlockchainManager {
       results.forEach((txs) => allTransactions.push(...txs))
 
       allTransactions.sort((a, b) => b.timestamp - a.timestamp)
-      return allTransactions.slice(0, 10) // Limiter à 10 transactions
+      return allTransactions.slice(0, 10)
     } catch (error) {
       console.log("⚠️ Pas de transactions disponibles")
       return []
@@ -552,7 +567,6 @@ export class BlockchainManager {
   }
 
   async getNetworkFees(): Promise<{ eth: NetworkFees; btc: NetworkFees; algo: NetworkFees }> {
-    // Retourner des frais par défaut immédiatement
     return {
       eth: { slow: "20 gwei", standard: "25 gwei", fast: "30 gwei" },
       btc: { slow: "10 sat/vB", standard: "20 sat/vB", fast: "30 sat/vB" },
@@ -566,22 +580,8 @@ export async function fetchBalances(addresses: {
   ethereum: string
   algorand: string
 }): Promise<CryptoBalance> {
-  // Simulate API call delay
-  await new Promise((resolve) => setTimeout(resolve, 1000))
-
-  // In a real application, you would use actual blockchain APIs here.
-  // For example:
-  // - Bitcoin: BlockCypher, Blockstream, etc.
-  // - Ethereum: Etherscan, Infura, Alchemy, etc.
-  // - Algorand: AlgoExplorer, PureStake, etc.
-
-  console.log("Fetching simulated balances for addresses:", addresses)
-
-  return {
-    bitcoin: "0.00000000", // Placeholder balance
-    ethereum: "0.000000000000000000", // Placeholder balance
-    algorand: "0.000000", // Placeholder balance
-  }
+  const manager = new BlockchainManager()
+  return await manager.getAllBalances(addresses)
 }
 
 export async function sendTransaction(
@@ -589,15 +589,11 @@ export async function sendTransaction(
   senderAddress: string,
   recipientAddress: string,
   amount: string,
-  privateKey: string, // In a real app, this would be handled securely, not passed directly
+  privateKey: string,
 ): Promise<{ txId: string }> {
-  // Simulate API call delay
   await new Promise((resolve) => setTimeout(resolve, 2000))
 
   console.log(`Simulating sending ${amount} ${crypto} from ${senderAddress} to ${recipientAddress}`)
-
-  // In a real application, you would sign and broadcast the transaction.
-  // This is a highly simplified placeholder.
 
   return { txId: `simulated_tx_${Date.now()}` }
 }

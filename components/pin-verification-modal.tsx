@@ -8,46 +8,61 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { X, Shield, AlertCircle } from "lucide-react"
+import { verifyPin } from "@/lib/wallet-utils"
+import { useLanguage } from "@/contexts/language-context"
+import { getTranslation } from "@/lib/i18n"
 
 interface PinVerificationModalProps {
   isOpen: boolean
   onVerified: () => void
   onCancel: () => void
-  title: string
-  description: string
+  title?: string
+  description?: string
 }
 
-export function PinVerificationModal({ isOpen, onVerified, onCancel, title, description }: PinVerificationModalProps) {
+export function PinVerificationModal({
+  isOpen,
+  onVerified,
+  onCancel,
+  title = "Vérification PIN",
+  description = "Veuillez saisir votre code PIN",
+}: PinVerificationModalProps) {
+  const { language } = useLanguage()
+  const t = getTranslation(language)
   const [pin, setPin] = useState("")
   const [error, setError] = useState("")
   const [isVerifying, setIsVerifying] = useState(false)
 
   if (!isOpen) return null
 
-  const handleVerify = async () => {
+  const handleVerifyPin = async () => {
+    setError("")
+
     if (!pin) {
       setError("Veuillez saisir votre code PIN")
       return
     }
 
     setIsVerifying(true)
-    setError("")
 
-    // Simuler la vérification
-    setTimeout(() => {
+    try {
       const storedPin = localStorage.getItem("pin-hash")
-      if (storedPin && btoa(pin) === storedPin) {
+      if (storedPin && (await verifyPin(pin, storedPin))) {
         onVerified()
+        setPin("")
       } else {
         setError("Code PIN incorrect")
       }
+    } catch (error) {
+      setError("Erreur lors de la vérification du PIN")
+    } finally {
       setIsVerifying(false)
-    }, 500)
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
-      handleVerify()
+      handleVerifyPin()
     }
   }
 
@@ -73,15 +88,16 @@ export function PinVerificationModal({ isOpen, onVerified, onCancel, title, desc
 
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="pin">Code PIN</Label>
+            <Label htmlFor="pin">{t.settings.security.pin}</Label>
             <Input
               id="pin"
               type="password"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Saisissez votre code PIN"
+              placeholder="••••••"
               maxLength={6}
+              className="text-center text-2xl tracking-widest"
               autoFocus
             />
           </div>
@@ -97,10 +113,10 @@ export function PinVerificationModal({ isOpen, onVerified, onCancel, title, desc
 
           <div className="flex space-x-3">
             <Button variant="outline" onClick={onCancel} className="flex-1 bg-transparent">
-              Annuler
+              {t.common.cancel}
             </Button>
-            <Button onClick={handleVerify} disabled={isVerifying || !pin} className="flex-1">
-              {isVerifying ? "Vérification..." : "Vérifier"}
+            <Button onClick={handleVerifyPin} disabled={isVerifying || !pin} className="flex-1">
+              {isVerifying ? "Vérification..." : t.common.confirm}
             </Button>
           </div>
         </CardContent>

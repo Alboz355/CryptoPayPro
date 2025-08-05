@@ -10,8 +10,8 @@ import { Toaster } from "@/components/ui/toaster"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Crypto Wallet App",
-  description: "Application de portefeuille crypto professionnelle",
+  title: "CryptoPayPro - Portefeuille Crypto Professionnel",
+  description: "Application de portefeuille crypto sécurisée avec fonctionnalités TPE pour les commerçants",
     generator: 'v0.dev'
 }
 

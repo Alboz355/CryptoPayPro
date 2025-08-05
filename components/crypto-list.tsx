@@ -1,27 +1,47 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { TrendingUp, TrendingDown, RefreshCw } from "lucide-react"
-import { cryptoService, type CryptoPrice } from "@/lib/crypto-prices"
+import { TrendingUp, TrendingDown } from "lucide-react"
+import { cryptoService } from "@/lib/crypto-prices"
+import { useLanguage } from "@/contexts/language-context"
+import { getTranslation } from "@/lib/i18n"
 
-interface CryptoListProps {
-  onCryptoSelect?: (crypto: CryptoPrice) => void
+interface CryptoData {
+  id: string
+  symbol: string
+  name: string
+  current_price: number
+  price_change_percentage_24h: number
+  market_cap: number
+  image: string
+  balance?: string
 }
 
-export function CryptoList({ onCryptoSelect }: CryptoListProps) {
-  const [cryptos, setCryptos] = useState<CryptoPrice[]>([])
+export function CryptoList() {
+  const { language } = useLanguage()
+  const t = getTranslation(language)
+  const [cryptos, setCryptos] = useState<CryptoData[]>([])
   const [loading, setLoading] = useState(true)
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
 
-  const fetchCryptos = async () => {
-    setLoading(true)
+  useEffect(() => {
+    fetchCryptoData()
+    const interval = setInterval(fetchCryptoData, 30000) // Update every 30 seconds
+    return () => clearInterval(interval)
+  }, [])
+
+  const fetchCryptoData = async () => {
     try {
-      const data = await cryptoService.getCryptoPrices()
-      setCryptos(data)
-      setLastUpdate(new Date())
+      const prices = await cryptoService.getCryptoPrices()
+
+      // Add mock balances for demonstration
+      const cryptosWithBalances = prices.map((crypto) => ({
+        ...crypto,
+        balance: getStoredBalance(crypto.symbol.toUpperCase()),
+      }))
+
+      setCryptos(cryptosWithBalances)
     } catch (error) {
       console.error("Error fetching crypto data:", error)
     } finally {
@@ -29,11 +49,46 @@ export function CryptoList({ onCryptoSelect }: CryptoListProps) {
     }
   }
 
-  useEffect(() => {
-    fetchCryptos()
-    const interval = setInterval(fetchCryptos, 60000) // Update every minute
-    return () => clearInterval(interval)
-  }, [])
+  const getStoredBalance = (symbol: string): string => {
+    const walletData = localStorage.getItem("wallet-data")
+    if (walletData) {
+      try {
+        const parsed = JSON.parse(walletData)
+        switch (symbol) {
+          case "BTC":
+            return parsed.balances?.bitcoin || "0"
+          case "ETH":
+            return parsed.balances?.ethereum || "0"
+          case "ALGO":
+            return parsed.balances?.algorand || "0"
+          default:
+            return "0"
+        }
+      } catch (error) {
+        return "0"
+      }
+    }
+    return "0"
+  }
+
+  const formatBalance = (balance: string, symbol: string): string => {
+    const num = Number.parseFloat(balance)
+    if (isNaN(num) || num === 0) return `0 ${symbol}`
+
+    if (symbol === "BTC") {
+      return `${num.toFixed(8)} ${symbol}`
+    } else if (symbol === "ETH") {
+      return `${num.toFixed(6)} ${symbol}`
+    } else {
+      return `${num.toFixed(4)} ${symbol}`
+    }
+  }
+
+  const calculateBalanceValue = (balance: string, price: number): string => {
+    const num = Number.parseFloat(balance)
+    if (isNaN(num) || num === 0) return "0.00"
+    return (num * price).toFixed(2)
+  }
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("fr-CH", {
@@ -61,96 +116,57 @@ export function CryptoList({ onCryptoSelect }: CryptoListProps) {
     return `${sign}${change.toFixed(2)}%`
   }
 
-  if (loading && cryptos.length === 0) {
+  if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Prix des Cryptomonnaies</span>
-            <RefreshCw className="h-4 w-4 animate-spin" />
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center space-x-4 p-4 border rounded-lg animate-pulse">
-                <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-300 rounded w-1/4"></div>
-                  <div className="h-3 bg-gray-300 rounded w-1/3"></div>
-                </div>
-                <div className="text-right space-y-2">
-                  <div className="h-4 bg-gray-300 rounded w-20"></div>
-                  <div className="h-3 bg-gray-300 rounded w-16"></div>
-                </div>
-              </div>
-            ))}
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="animate-pulse">
+            <div className="h-16 bg-muted rounded-lg"></div>
           </div>
-        </CardContent>
-      </Card>
+        ))}
+      </div>
     )
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span>Prix des Cryptomonnaies</span>
-          <div className="flex items-center space-x-2">
-            {lastUpdate && <span className="text-sm text-muted-foreground">{lastUpdate.toLocaleTimeString()}</span>}
-            <Button variant="outline" size="sm" onClick={fetchCryptos} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            </Button>
-          </div>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {cryptos.map((crypto) => (
-            <div
-              key={crypto.id}
-              className={`flex items-center space-x-4 p-4 border rounded-lg transition-colors ${
-                onCryptoSelect ? "cursor-pointer hover:bg-muted" : ""
-              }`}
-              onClick={() => onCryptoSelect?.(crypto)}
-            >
-              <img
-                src={crypto.image || "/placeholder.svg"}
-                alt={crypto.name}
-                className="w-10 h-10 rounded-full"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement
-                  target.src = "/placeholder.svg?height=40&width=40"
-                }}
-              />
-              <div className="flex-1">
-                <div className="flex items-center space-x-2">
+    <div className="space-y-3">
+      {cryptos.map((crypto) => (
+        <Card key={crypto.id} className="crypto-card">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className={`crypto-icon ${crypto.symbol.toLowerCase()}`}>{crypto.symbol.charAt(0)}</div>
+                <div>
                   <h3 className="font-semibold">{crypto.name}</h3>
-                  <Badge variant="secondary">{crypto.symbol.toUpperCase()}</Badge>
+                  <p className="text-sm text-muted-foreground crypto-balance">
+                    {formatBalance(crypto.balance || "0", crypto.symbol.toUpperCase())}
+                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground">Cap. marché: {formatMarketCap(crypto.market_cap)}</p>
               </div>
+
               <div className="text-right">
-                <p className="font-semibold">{formatPrice(crypto.current_price)}</p>
-                <div className="flex items-center space-x-1">
-                  {crypto.price_change_percentage_24h >= 0 ? (
-                    <TrendingUp className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <TrendingDown className="h-4 w-4 text-red-600" />
-                  )}
-                  <span
-                    className={`text-sm font-medium ${
-                      crypto.price_change_percentage_24h >= 0 ? "text-green-600" : "text-red-600"
-                    }`}
+                <div className="flex items-center space-x-2">
+                  <p className="font-semibold">{formatPrice(crypto.current_price)}</p>
+                  <Badge
+                    variant={crypto.price_change_percentage_24h >= 0 ? "default" : "destructive"}
+                    className="text-xs"
                   >
-                    {formatChange(crypto.price_change_percentage_24h)}
-                  </span>
+                    {crypto.price_change_percentage_24h >= 0 ? (
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3 mr-1" />
+                    )}
+                    {Math.abs(crypto.price_change_percentage_24h).toFixed(2)}%
+                  </Badge>
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  CHF {calculateBalanceValue(crypto.balance || "0", crypto.current_price)}
+                </p>
               </div>
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
   )
 }

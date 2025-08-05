@@ -10,12 +10,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, QrCode, Copy, Printer, RefreshCw, CheckCircle, Clock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { cryptoService } from "@/lib/crypto-prices"
-import type { AppState } from "@/app/page"
+import { useLanguage } from "@/contexts/language-context"
+import { getTranslation } from "@/lib/i18n"
+import type { AppState, WalletData } from "@/app/page"
 
 interface TPEPaymentPageProps {
   onNavigate: (page: AppState) => void
   onBack: () => void
-  walletData: any
+  walletData: WalletData | null
 }
 
 interface CryptoOption {
@@ -28,6 +30,8 @@ interface CryptoOption {
 }
 
 export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPageProps) {
+  const { language } = useLanguage()
+  const t = getTranslation(language)
   const [amount, setAmount] = useState("")
   const [selectedCrypto, setSelectedCrypto] = useState("bitcoin")
   const [cryptoAmount, setCryptoAmount] = useState("")
@@ -40,7 +44,7 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
   const cryptoOptions: Record<string, CryptoOption> = {
     bitcoin: {
       id: "bitcoin",
-      name: "Bitcoin",
+      name: t.crypto.bitcoin,
       symbol: "BTC",
       color: "bg-orange-500",
       address: walletData?.addresses?.bitcoin || "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
@@ -48,7 +52,7 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
     },
     ethereum: {
       id: "ethereum",
-      name: "Ethereum",
+      name: t.crypto.ethereum,
       symbol: "ETH",
       color: "bg-blue-500",
       address: walletData?.addresses?.ethereum || "0x742d35Cc6634C0532925a3b8D4C9db96590b5c8e",
@@ -56,7 +60,7 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
     },
     algorand: {
       id: "algorand",
-      name: "Algorand",
+      name: t.crypto.algorand,
       symbol: "ALGO",
       color: "bg-black",
       address: walletData?.addresses?.algorand || "ALGORANDADDRESSEXAMPLE234567890ABCDEFGHIJK",
@@ -66,7 +70,7 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
 
   useEffect(() => {
     fetchCryptoPrices()
-    const interval = setInterval(fetchCryptoPrices, 30000) // Update every 30 seconds
+    const interval = setInterval(fetchCryptoPrices, 30000)
     return () => clearInterval(interval)
   }, [])
 
@@ -89,7 +93,7 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
     } catch (error) {
       console.error("Error fetching crypto prices:", error)
       toast({
-        title: "Erreur",
+        title: t.common.error,
         description: "Impossible de récupérer les prix des cryptomonnaies",
         variant: "destructive",
       })
@@ -103,7 +107,7 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
     const cryptoPrice = cryptoPrices[selectedCrypto]
 
     if (chfAmount && cryptoPrice) {
-      // Convert CHF to USD (approximate rate - in production, use a real forex API)
+      // Convert CHF to USD (using real-time rates would be better)
       const usdAmount = chfAmount * 1.1 // 1 CHF ≈ 1.1 USD
       const cryptoValue = usdAmount / cryptoPrice
       setCryptoAmount(cryptoValue.toFixed(8))
@@ -122,19 +126,16 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
           qrData = `${crypto.qrPrefix}${crypto.address}?amount=${cryptoValue}`
           break
         case "ethereum":
-          // Ethereum uses wei (1 ETH = 10^18 wei)
           const weiAmount = Math.floor(cryptoValue * Math.pow(10, 18))
           qrData = `${crypto.qrPrefix}${crypto.address}?value=${weiAmount}`
           break
         case "algorand":
-          // Algorand uses microAlgos (1 ALGO = 10^6 microAlgos)
           const microAlgos = Math.floor(cryptoValue * Math.pow(10, 6))
           qrData = `${crypto.qrPrefix}${crypto.address}?amount=${microAlgos}`
           break
       }
     }
 
-    // Generate QR code with proper crypto URI
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}&bgcolor=FFFFFF&color=000000&margin=10`
     setQrCodeUrl(qrUrl)
   }
@@ -143,13 +144,13 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
     try {
       await navigator.clipboard.writeText(text)
       toast({
-        title: "Copié !",
-        description: `${label} copié dans le presse-papiers`,
+        title: t.messages.copied,
+        description: `${label} ${t.messages.copiedToClipboard}`,
       })
     } catch (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de copier dans le presse-papiers",
+        title: t.common.error,
+        description: t.messages.cannotCopy,
         variant: "destructive",
       })
     }
@@ -222,9 +223,9 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
         <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={onBack} className="bg-background dark:bg-background">
             <ArrowLeft className="h-5 w-5 mr-2" />
-            Retour au TPE
+            {t.common.back} au TPE
           </Button>
-          <h1 className="text-2xl font-bold text-foreground">💳 Nouveau Paiement</h1>
+          <h1 className="text-2xl font-bold text-foreground">💳 {t.tpe.menu.newPayment}</h1>
           <div className="w-32" />
         </div>
 
@@ -239,7 +240,7 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
               <CardContent className="space-y-4">
                 <div>
                   <Label htmlFor="amount" className="text-foreground">
-                    Montant en CHF
+                    {t.mtPelerin.amountCHF}
                   </Label>
                   <Input
                     id="amount"
@@ -272,7 +273,7 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
             {/* Crypto Selection */}
             <Card className="bg-card dark:bg-card">
               <CardHeader>
-                <CardTitle className="text-foreground">Cryptomonnaie</CardTitle>
+                <CardTitle className="text-foreground">{t.mtPelerin.cryptocurrency}</CardTitle>
               </CardHeader>
               <CardContent>
                 <Tabs value={selectedCrypto} onValueChange={setSelectedCrypto}>
@@ -291,7 +292,8 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
                         <div className="flex-1">
                           <h3 className="font-semibold text-foreground">{crypto.name}</h3>
                           <p className="text-sm text-muted-foreground">
-                            Prix actuel: {currentPrice ? `$${currentPrice.toFixed(2)}` : "Chargement..."}
+                            {t.priceAlerts.currentPrice}:{" "}
+                            {currentPrice ? `$${currentPrice.toFixed(2)}` : t.common.loading}
                           </p>
                         </div>
                         <Button
@@ -320,7 +322,9 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
                     <p className="text-2xl font-bold text-primary">
                       {cryptoAmount} {currentCrypto.symbol}
                     </p>
-                    <p className="text-sm text-muted-foreground">Taux: ${currentPrice?.toFixed(2)} USD</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t.mtPelerin.currentRate}: ${currentPrice?.toFixed(2)} USD
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -334,7 +338,7 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center">
                   <QrCode className="mr-2 h-5 w-5" />
-                  Code QR de Paiement
+                  {t.receive.qrCode} de Paiement
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-center space-y-4">
@@ -396,7 +400,7 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
                     className="bg-background dark:bg-background"
                   >
                     <Copy className="mr-2 h-4 w-4" />
-                    Copier adresse
+                    {t.receive.copyAddress}
                   </Button>
                   <Button
                     variant="outline"
@@ -406,7 +410,7 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
                     className="bg-background dark:bg-background"
                   >
                     <Printer className="mr-2 h-4 w-4" />
-                    Imprimer
+                    {t.common.print}
                   </Button>
                 </div>
               </CardContent>
@@ -415,7 +419,7 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
             {/* Address Display */}
             <Card className="bg-card dark:bg-card">
               <CardHeader>
-                <CardTitle className="text-foreground">Adresse de réception</CardTitle>
+                <CardTitle className="text-foreground">{t.receive.receiveAddress}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -423,7 +427,7 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
                     {currentCrypto.address}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    ⚠️ Envoyez uniquement du {currentCrypto.name} ({currentCrypto.symbol}) à cette adresse
+                    ⚠️ {t.receive.warningText} {currentCrypto.name} ({currentCrypto.symbol}) à cette adresse
                   </p>
                 </div>
               </CardContent>

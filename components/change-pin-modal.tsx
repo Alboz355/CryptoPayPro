@@ -6,6 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { X, Shield, AlertCircle, CheckCircle } from "lucide-react"
+import { verifyPin } from "@/lib/wallet-utils"
+import { useLanguage } from "@/contexts/language-context"
+import { getTranslation } from "@/lib/i18n"
 
 interface ChangePinModalProps {
   isOpen: boolean
@@ -14,6 +17,8 @@ interface ChangePinModalProps {
 }
 
 export function ChangePinModal({ isOpen, onPinChanged, onCancel }: ChangePinModalProps) {
+  const { language } = useLanguage()
+  const t = getTranslation(language)
   const [currentPin, setCurrentPin] = useState("")
   const [newPin, setNewPin] = useState("")
   const [confirmPin, setConfirmPin] = useState("")
@@ -27,7 +32,7 @@ export function ChangePinModal({ isOpen, onPinChanged, onCancel }: ChangePinModa
 
     // Vérifications
     if (!currentPin || !newPin || !confirmPin) {
-      setError("Veuillez remplir tous les champs")
+      setError(t.messages.fillAllFields || "Veuillez remplir tous les champs")
       return
     }
 
@@ -48,10 +53,10 @@ export function ChangePinModal({ isOpen, onPinChanged, onCancel }: ChangePinModa
 
     setIsChanging(true)
 
-    // Vérifier l'ancien PIN
-    setTimeout(() => {
+    try {
+      // Vérifier l'ancien PIN avec hachage sécurisé
       const storedPin = localStorage.getItem("pin-hash")
-      if (storedPin && btoa(currentPin) === storedPin) {
+      if (storedPin && (await verifyPin(currentPin, storedPin))) {
         onPinChanged(newPin)
         setCurrentPin("")
         setNewPin("")
@@ -59,8 +64,11 @@ export function ChangePinModal({ isOpen, onPinChanged, onCancel }: ChangePinModa
       } else {
         setError("Code PIN actuel incorrect")
       }
+    } catch (error) {
+      setError("Erreur lors de la vérification du PIN")
+    } finally {
       setIsChanging(false)
-    }, 500)
+    }
   }
 
   return (
@@ -73,8 +81,8 @@ export function ChangePinModal({ isOpen, onPinChanged, onCancel }: ChangePinModa
                 <Shield className="h-5 w-5 text-orange-600 dark:text-orange-400" />
               </div>
               <div>
-                <CardTitle className="text-xl">Changer le code PIN</CardTitle>
-                <CardDescription>Modifiez votre code PIN de sécurité</CardDescription>
+                <CardTitle className="text-xl">{t.settings.security.changePin}</CardTitle>
+                <CardDescription>{t.settings.security.changePinDescription}</CardDescription>
               </div>
             </div>
             <Button variant="ghost" size="icon" onClick={onCancel}>
@@ -85,7 +93,7 @@ export function ChangePinModal({ isOpen, onPinChanged, onCancel }: ChangePinModa
 
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="current-pin">Code PIN actuel</Label>
+            <Label htmlFor="current-pin">{t.settings.security.pin} actuel</Label>
             <Input
               id="current-pin"
               type="password"
@@ -97,7 +105,7 @@ export function ChangePinModal({ isOpen, onPinChanged, onCancel }: ChangePinModa
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="new-pin">Nouveau code PIN</Label>
+            <Label htmlFor="new-pin">Nouveau {t.settings.security.pin}</Label>
             <Input
               id="new-pin"
               type="password"
@@ -145,14 +153,14 @@ export function ChangePinModal({ isOpen, onPinChanged, onCancel }: ChangePinModa
 
           <div className="flex space-x-3">
             <Button variant="outline" onClick={onCancel} className="flex-1 bg-transparent">
-              Annuler
+              {t.common.cancel}
             </Button>
             <Button
               onClick={handleChangePin}
               disabled={isChanging || !currentPin || !newPin || !confirmPin}
               className="flex-1"
             >
-              {isChanging ? "Modification..." : "Changer le PIN"}
+              {isChanging ? "Modification..." : t.settings.security.changePin}
             </Button>
           </div>
         </CardContent>

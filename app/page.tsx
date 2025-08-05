@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { OnboardingPage, type UserType } from "@/components/onboarding-page"
+import { OnboardingPage } from "@/components/onboarding-page"
 import { PinSetupPage } from "@/components/pin-setup-page"
 import { AppPresentation } from "@/components/app-presentation"
 import { MainDashboard } from "@/components/main-dashboard"
@@ -18,6 +18,9 @@ import { SeedPhraseModal } from "@/components/seed-phrase-modal"
 import { MtPelerinWidget } from "@/components/mt-pelerin-widget"
 import { SupportContactModal } from "@/components/support-contact-modal"
 import { PriceAlertModal } from "@/components/price-alert-modal"
+import { hashPin } from "@/lib/wallet-utils"
+
+export type UserType = "client" | "merchant"
 
 export type AppState =
   | "onboarding"
@@ -37,7 +40,7 @@ export type AppState =
   | "tpe-settings"
   | "tpe-vat-management"
 
-interface WalletData {
+export interface WalletData {
   mnemonic: string
   addresses: {
     bitcoin: string
@@ -106,10 +109,11 @@ export default function CryptoWalletApp() {
     }
   }
 
-  const handlePinCreated = (pin: string) => {
+  const handlePinCreated = async (pin: string) => {
     try {
-      // En production, utiliser un hash sécurisé
-      localStorage.setItem("pin-hash", btoa(pin))
+      // Utiliser le hachage sécurisé
+      const hashedPin = await hashPin(pin)
+      localStorage.setItem("pin-hash", hashedPin)
       localStorage.setItem("onboarding-completed", "true")
       setCurrentPage("app-presentation")
     } catch (error) {
@@ -150,9 +154,10 @@ export default function CryptoWalletApp() {
     setShowChangePinModal(true)
   }
 
-  const handlePinChanged = (newPin: string) => {
+  const handlePinChanged = async (newPin: string) => {
     try {
-      localStorage.setItem("pin-hash", btoa(newPin))
+      const hashedPin = await hashPin(newPin)
+      localStorage.setItem("pin-hash", hashedPin)
       setShowChangePinModal(false)
       alert("Code PIN modifié avec succès !")
     } catch (error) {
