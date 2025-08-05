@@ -98,20 +98,15 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
     }
   }
 
-  const calculateCryptoAmount = async () => {
+  const calculateCryptoAmount = () => {
     const chfAmount = Number.parseFloat(amount)
     const cryptoPrice = cryptoPrices[selectedCrypto]
 
     if (chfAmount && cryptoPrice) {
-      try {
-        // Convert CHF to USD (approximate rate - in production, use a real forex API)
-        const usdAmount = chfAmount * 1.1 // 1 CHF ≈ 1.1 USD
-        const cryptoValue = usdAmount / cryptoPrice
-        setCryptoAmount(cryptoValue.toFixed(8))
-      } catch (error) {
-        console.error("Error calculating crypto amount:", error)
-        setCryptoAmount("0")
-      }
+      // Convert CHF to USD (approximate rate - in production, use a real forex API)
+      const usdAmount = chfAmount * 1.1 // 1 CHF ≈ 1.1 USD
+      const cryptoValue = usdAmount / cryptoPrice
+      setCryptoAmount(cryptoValue.toFixed(8))
     }
   }
 

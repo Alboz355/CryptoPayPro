@@ -6,7 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Search, Download, Filter, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, XCircle } from 'lucide-react'
+import {
+  ArrowLeft,
+  Search,
+  Download,
+  Filter,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Clock,
+  CheckCircle,
+  XCircle,
+} from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 import type { AppState } from "@/app/page"
 
@@ -27,70 +37,6 @@ interface Transaction {
   hash: string
 }
 
-// Données de démonstration
-const mockTransactions: Transaction[] = [
-  {
-    id: "1",
-    type: "receive",
-    crypto: "bitcoin",
-    amount: "0.00125000",
-    fiatAmount: "52.50",
-    address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
-    status: "completed",
-    timestamp: new Date("2024-01-15T14:30:00"),
-    fee: "0.00001500",
-    hash: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6",
-  },
-  {
-    id: "2",
-    type: "send",
-    crypto: "ethereum",
-    amount: "0.05000000",
-    fiatAmount: "125.75",
-    address: "0x742d35Cc6634C0532925a3b8D4C0532925a3b8D4",
-    status: "completed",
-    timestamp: new Date("2024-01-14T09:15:00"),
-    fee: "0.00250000",
-    hash: "b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1",
-  },
-  {
-    id: "3",
-    type: "send",
-    crypto: "algorand",
-    amount: "100.00000000",
-    fiatAmount: "18.50",
-    address: "ALGORAND7UHCUR2FJKL5QWERTYUIOPASDFGHJKLZXCVBNM",
-    status: "pending",
-    timestamp: new Date("2024-01-13T16:45:00"),
-    fee: "0.00100000",
-    hash: "c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2",
-  },
-  {
-    id: "4",
-    type: "receive",
-    crypto: "bitcoin",
-    amount: "0.00250000",
-    fiatAmount: "105.00",
-    address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
-    status: "failed",
-    timestamp: new Date("2024-01-12T11:20:00"),
-    fee: "0.00001000",
-    hash: "d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3",
-  },
-  {
-    id: "5",
-    type: "receive",
-    crypto: "ethereum",
-    amount: "0.10000000",
-    fiatAmount: "251.50",
-    address: "0x742d35Cc6634C0532925a3b8D4C0532925a3b8D4",
-    status: "completed",
-    timestamp: new Date("2024-01-11T13:10:00"),
-    fee: "0.00180000",
-    hash: "e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a1b2c3d4",
-  },
-]
-
 export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
   const { t } = useLanguage()
   const [searchTerm, setSearchTerm] = useState("")
@@ -98,10 +44,23 @@ export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
   const [filterCrypto, setFilterCrypto] = useState<"all" | "bitcoin" | "ethereum" | "algorand">("all")
   const [filterStatus, setFilterStatus] = useState<"all" | "completed" | "pending" | "failed">("all")
 
-  const filteredTransactions = useMemo(() => {
-    if (!mockTransactions || mockTransactions.length === 0) return []
+  // Récupérer les transactions depuis le localStorage
+  const getTransactions = (): Transaction[] => {
+    try {
+      const stored = localStorage.getItem("transaction-history")
+      return stored ? JSON.parse(stored) : []
+    } catch (error) {
+      console.error("Error loading transaction history:", error)
+      return []
+    }
+  }
 
-    return mockTransactions.filter((transaction) => {
+  const transactions = getTransactions()
+
+  const filteredTransactions = useMemo(() => {
+    if (!transactions || transactions.length === 0) return []
+
+    return transactions.filter((transaction) => {
       const matchesSearch =
         searchTerm === "" ||
         transaction.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -114,7 +73,7 @@ export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
 
       return matchesSearch && matchesType && matchesCrypto && matchesStatus
     })
-  }, [searchTerm, filterType, filterCrypto, filterStatus])
+  }, [transactions, searchTerm, filterType, filterCrypto, filterStatus])
 
   const getCryptoIcon = (crypto: string) => {
     switch (crypto) {
@@ -185,8 +144,8 @@ export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
       headers.join(","),
       ...filteredTransactions.map((tx) =>
         [
-          tx.timestamp.toLocaleDateString(),
-          tx.timestamp.toLocaleTimeString(),
+          new Date(tx.timestamp).toLocaleDateString(),
+          new Date(tx.timestamp).toLocaleTimeString(),
           getTypeLabel(tx.type),
           tx.crypto,
           tx.amount,
@@ -357,7 +316,8 @@ export function TransactionHistory({ onNavigate }: TransactionHistoryProps) {
                           ...
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-500">
-                          {transaction.timestamp.toLocaleDateString()} à {transaction.timestamp.toLocaleTimeString()}
+                          {new Date(transaction.timestamp).toLocaleDateString()} à{" "}
+                          {new Date(transaction.timestamp).toLocaleTimeString()}
                         </div>
                       </div>
                     </div>

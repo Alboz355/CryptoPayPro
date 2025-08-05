@@ -61,7 +61,6 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
     setCurrentStep("wallet-setup")
   }
 
-  // Fonction async pour gérer l'initialisation asynchrone de Trust Wallet
   const handleCreateWallet = async () => {
     if (!selectedUserType) return
 
@@ -70,13 +69,12 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
     setSuccess(null)
 
     try {
-      // Utiliser await car generateWallet est maintenant asynchrone
       const wallet = await generateWallet()
 
       const walletData: WalletData = {
         mnemonic: wallet.mnemonic,
         addresses: wallet.addresses,
-        // Initialiser les soldes à zéro, SANS SIMULATION
+        // Initialiser les soldes à zéro, pas de simulation
         balances: {
           bitcoin: "0",
           ethereum: "0",
@@ -135,7 +133,6 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
         throw new Error("La phrase de récupération doit contenir 12 ou 24 mots")
       }
 
-      // Utiliser await car generateWallet est maintenant asynchrone
       const wallet = await generateWallet()
 
       const walletData: WalletData = {
