@@ -3,193 +3,113 @@
 import { useState, useEffect } from "react"
 import { OnboardingPage } from "@/components/onboarding-page"
 import { PinSetupPage } from "@/components/pin-setup-page"
-import { AppPresentation } from "@/components/app-presentation"
 import { MainDashboard } from "@/components/main-dashboard"
 import { SendPage } from "@/components/send-page"
 import { ReceivePage } from "@/components/receive-page"
 import { SettingsPage } from "@/components/settings-page"
 import { TransactionHistory } from "@/components/transaction-history"
 import { TPEDashboard } from "@/components/tpe-dashboard"
+import { TPEMainPage } from "@/components/tpe-main-page"
+import { TPEPaymentPage } from "@/components/tpe-payment-page"
+import { TPEBillingPage } from "@/components/tpe-billing-page"
+import { TPEConversionPage } from "@/components/tpe-conversion-page"
+import { TPESearchPage } from "@/components/tpe-search-page"
+import { TPEHistoryPage } from "@/components/tpe-history-page"
+import { TPESettingsPage } from "@/components/tpe-settings-page"
+import { TPEStatisticsPage } from "@/components/tpe-statistics-page"
+import { TPEVatManagement } from "@/components/tpe-vat-management"
+import { UserTypeSelection } from "@/components/user-type-selection"
+import { AppPresentation } from "@/components/app-presentation"
+import { LanguageProvider } from "@/contexts/language-context"
+import { CurrencyProvider } from "@/contexts/currency-context"
+import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/toaster"
+import { walletStorage } from "@/lib/storage"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { LoadingFallback } from "@/components/loading-fallback"
-import { PinVerificationModal } from "@/components/pin-verification-modal"
-import { ChangePinModal } from "@/components/change-pin-modal"
-import { SeedPhraseModal } from "@/components/seed-phrase-modal"
-import { MtPelerinWidget } from "@/components/mt-pelerin-widget"
-import { SupportContactModal } from "@/components/support-contact-modal"
-import { PriceAlertModal } from "@/components/price-alert-modal"
-import { hashPin } from "@/lib/wallet-utils"
 
-export type UserType = "client" | "merchant"
-
-export type AppState =
+export type AppPage =
+  | "presentation"
+  | "user-type-selection"
   | "onboarding"
   | "pin-setup"
-  | "app-presentation"
   | "dashboard"
   | "send"
   | "receive"
-  | "settings"
   | "history"
-  | "tpe"
-  | "tpe-search"
-  | "tpe-billing"
+  | "settings"
+  | "tpe-dashboard"
+  | "tpe-main"
   | "tpe-payment"
+  | "tpe-billing"
   | "tpe-conversion"
+  | "tpe-search"
   | "tpe-history"
   | "tpe-settings"
-  | "tpe-vat-management"
+  | "tpe-statistics"
+  | "tpe-vat"
 
-export interface WalletData {
-  mnemonic: string
-  addresses: {
-    bitcoin: string
-    ethereum: string
-    algorand: string
-  }
-  balances: {
-    bitcoin: string
-    ethereum: string
-    algorand: string
-  }
-  accounts: any[]
-}
+export type UserType = "individual" | "business" | null
 
-export default function CryptoWalletApp() {
-  const [currentPage, setCurrentPage] = useState<AppState>("onboarding")
-  const [walletData, setWalletData] = useState<WalletData | null>(null)
-  const [userType, setUserType] = useState<UserType | null>(null)
+export default function Home() {
+  const [currentPage, setCurrentPage] = useState<AppPage>("presentation")
+  const [userType, setUserType] = useState<UserType>(null)
+  const [walletData, setWalletData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [showPinVerification, setShowPinVerification] = useState(false)
-  const [showChangePinModal, setShowChangePinModal] = useState(false)
-  const [showSeedPhraseModal, setShowSeedPhraseModal] = useState(false)
-  const [showMtPelerinWidget, setShowMtPelerinWidget] = useState(false)
-  const [showSupportModal, setShowSupportModal] = useState(false)
-  const [showPriceAlertModal, setShowPriceAlertModal] = useState(false)
-  const [pendingTPEAccess, setPendingTPEAccess] = useState(false)
-  const [tpeAccessGranted, setTpeAccessGranted] = useState(false)
 
   useEffect(() => {
-    // Vérifier si un portefeuille existe déjà
-    const existingWallet = localStorage.getItem("wallet-data")
-    const hasCompletedOnboarding = localStorage.getItem("onboarding-completed")
-    const savedUserType = localStorage.getItem("user-type") as UserType | null
-    const hasSeenPresentation = localStorage.getItem("presentation-seen")
-
-    if (existingWallet && hasCompletedOnboarding && savedUserType && hasSeenPresentation) {
-      try {
-        const parsed = JSON.parse(existingWallet)
-        setWalletData(parsed)
-        setUserType(savedUserType)
-        setCurrentPage("dashboard")
-      } catch (error) {
-        console.error("Erreur lors du chargement du portefeuille:", error)
-        localStorage.removeItem("wallet-data")
-        localStorage.removeItem("onboarding-completed")
-        localStorage.removeItem("user-type")
-        localStorage.removeItem("presentation-seen")
-        setCurrentPage("onboarding")
-      }
-    } else {
-      setCurrentPage("onboarding")
-    }
-
-    setIsLoading(false)
+    initializeApp()
   }, [])
 
-  const handleWalletCreated = (wallet: WalletData, selectedUserType: UserType) => {
+  const initializeApp = async () => {
     try {
-      setWalletData(wallet)
-      setUserType(selectedUserType)
-      localStorage.setItem("wallet-data", JSON.stringify(wallet))
-      localStorage.setItem("user-type", selectedUserType)
-      setCurrentPage("pin-setup")
+      const savedWalletData = await walletStorage.loadWalletData()
+
+      if (savedWalletData && savedWalletData.isSetup) {
+        setWalletData(savedWalletData)
+
+        // Determine user type based on saved data
+        if (savedWalletData.userType) {
+          setUserType(savedWalletData.userType)
+          setCurrentPage(savedWalletData.userType === "business" ? "tpe-dashboard" : "dashboard")
+        } else {
+          setCurrentPage("user-type-selection")
+        }
+      } else {
+        setCurrentPage("presentation")
+      }
     } catch (error) {
-      console.error("Erreur sauvegarde portefeuille:", error)
+      console.error("Failed to initialize app:", error)
+      setCurrentPage("presentation")
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const handlePinCreated = async (pin: string) => {
-    try {
-      // Utiliser le hachage sécurisé
-      const hashedPin = await hashPin(pin)
-      localStorage.setItem("pin-hash", hashedPin)
-      localStorage.setItem("onboarding-completed", "true")
-      setCurrentPage("app-presentation")
-    } catch (error) {
-      console.error("Erreur sauvegarde PIN:", error)
+  const handleUserTypeSelection = async (type: UserType) => {
+    setUserType(type)
+
+    // Save user type
+    if (walletData) {
+      const updatedWalletData = { ...walletData, userType: type }
+      await walletStorage.saveWalletData(updatedWalletData)
+      setWalletData(updatedWalletData)
     }
+
+    setCurrentPage("onboarding")
   }
 
-  const handlePresentationComplete = () => {
-    localStorage.setItem("presentation-seen", "true")
-    setCurrentPage("dashboard")
+  const handleOnboardingComplete = (data: any) => {
+    setWalletData(data)
+    setCurrentPage(userType === "business" ? "tpe-dashboard" : "dashboard")
   }
 
-  const handleNavigate = (page: AppState) => {
-    // Vérifier si l'accès au TPE nécessite un PIN (seulement si pas déjà accordé)
-    if (page.startsWith("tpe") && !tpeAccessGranted) {
-      setPendingTPEAccess(true)
-      setShowPinVerification(true)
-      return
-    }
+  const handlePinSetupComplete = () => {
+    setCurrentPage(userType === "business" ? "tpe-dashboard" : "dashboard")
+  }
+
+  const navigateTo = (page: AppPage) => {
     setCurrentPage(page)
-  }
-
-  const handlePinVerified = () => {
-    setShowPinVerification(false)
-    if (pendingTPEAccess) {
-      setPendingTPEAccess(false)
-      setTpeAccessGranted(true) // Accorder l'accès TPE pour cette session
-      setCurrentPage("tpe")
-    }
-  }
-
-  const handlePinVerificationCancel = () => {
-    setShowPinVerification(false)
-    setPendingTPEAccess(false)
-  }
-
-  const handleChangePinRequest = () => {
-    setShowChangePinModal(true)
-  }
-
-  const handlePinChanged = async (newPin: string) => {
-    try {
-      const hashedPin = await hashPin(newPin)
-      localStorage.setItem("pin-hash", hashedPin)
-      setShowChangePinModal(false)
-      alert("Code PIN modifié avec succès !")
-    } catch (error) {
-      console.error("Erreur changement PIN:", error)
-      alert("Erreur lors du changement de PIN")
-    }
-  }
-
-  const handleShowSeedPhrase = () => {
-    setShowSeedPhraseModal(true)
-  }
-
-  const handleShowMtPelerin = () => {
-    setShowMtPelerinWidget(true)
-  }
-
-  const handleShowSupport = () => {
-    setShowSupportModal(true)
-  }
-
-  const handleShowPriceAlert = () => {
-    setShowPriceAlertModal(true)
-  }
-
-  const handleExitTPE = () => {
-    setTpeAccessGranted(false) // Révoquer l'accès TPE
-    setCurrentPage("dashboard")
-  }
-
-  const handleUserTypeChange = (newUserType: UserType) => {
-    setUserType(newUserType)
-    localStorage.setItem("user-type", newUserType)
   }
 
   if (isLoading) {
@@ -198,117 +118,80 @@ export default function CryptoWalletApp() {
 
   const renderCurrentPage = () => {
     switch (currentPage) {
+      case "presentation":
+        return <AppPresentation onContinue={() => setCurrentPage("user-type-selection")} />
+
+      case "user-type-selection":
+        return <UserTypeSelection onSelect={handleUserTypeSelection} />
+
       case "onboarding":
-        return <OnboardingPage onWalletCreated={handleWalletCreated} />
+        return <OnboardingPage onComplete={handleOnboardingComplete} />
+
       case "pin-setup":
-        return <PinSetupPage onPinCreated={handlePinCreated} />
-      case "app-presentation":
-        return <AppPresentation userType={userType!} onComplete={handlePresentationComplete} />
+        return <PinSetupPage onComplete={handlePinSetupComplete} />
+
       case "dashboard":
-        return (
-          <MainDashboard
-            onNavigate={handleNavigate}
-            walletData={walletData}
-            onShowMtPelerin={handleShowMtPelerin}
-            onShowPriceAlert={handleShowPriceAlert}
-            userType={userType}
-          />
-        )
+        return <MainDashboard walletData={walletData} onNavigate={navigateTo} />
+
       case "send":
-        return <SendPage onNavigate={handleNavigate} walletData={walletData} />
+        return <SendPage onBack={() => navigateTo("dashboard")} />
+
       case "receive":
-        return <ReceivePage onNavigate={handleNavigate} walletData={walletData} />
-      case "settings":
-        return (
-          <SettingsPage
-            onNavigate={handleNavigate}
-            onChangePinRequest={handleChangePinRequest}
-            onShowSeedPhrase={handleShowSeedPhrase}
-            onShowSupport={handleShowSupport}
-            userType={userType}
-            onUserTypeChange={handleUserTypeChange}
-          />
-        )
+        return <ReceivePage onBack={() => navigateTo("dashboard")} />
+
       case "history":
-        return <TransactionHistory onNavigate={handleNavigate} />
-      case "tpe":
-      case "tpe-search":
-      case "tpe-billing":
+        return <TransactionHistory onBack={() => navigateTo("dashboard")} />
+
+      case "settings":
+        return <SettingsPage onBack={() => navigateTo("dashboard")} />
+
+      case "tpe-dashboard":
+        return <TPEDashboard onNavigate={navigateTo} />
+
+      case "tpe-main":
+        return <TPEMainPage onBack={() => navigateTo("tpe-dashboard")} />
+
       case "tpe-payment":
+        return <TPEPaymentPage onBack={() => navigateTo("tpe-dashboard")} />
+
+      case "tpe-billing":
+        return <TPEBillingPage onBack={() => navigateTo("tpe-dashboard")} />
+
       case "tpe-conversion":
+        return <TPEConversionPage onBack={() => navigateTo("tpe-dashboard")} />
+
+      case "tpe-search":
+        return <TPESearchPage onBack={() => navigateTo("tpe-dashboard")} />
+
       case "tpe-history":
+        return <TPEHistoryPage onBack={() => navigateTo("tpe-dashboard")} />
+
       case "tpe-settings":
-      case "tpe-vat-management":
-        return (
-          <TPEDashboard
-            currentPage={currentPage}
-            onNavigate={handleNavigate}
-            onExitTPE={handleExitTPE}
-            walletData={walletData}
-          />
-        )
+        return <TPESettingsPage onBack={() => navigateTo("tpe-dashboard")} />
+
+      case "tpe-statistics":
+        return <TPEStatisticsPage onBack={() => navigateTo("tpe-dashboard")} />
+
+      case "tpe-vat":
+        return <TPEVatManagement onBack={() => navigateTo("tpe-settings")} />
+
       default:
-        return (
-          <MainDashboard
-            onNavigate={handleNavigate}
-            walletData={walletData}
-            onShowMtPelerin={handleShowMtPelerin}
-            onShowPriceAlert={handleShowPriceAlert}
-            userType={userType}
-          />
-        )
+        return <AppPresentation onContinue={() => setCurrentPage("user-type-selection")} />
     }
   }
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-background text-foreground">
-        {renderCurrentPage()}
-
-        {/* Modals */}
-        {showPinVerification && (
-          <PinVerificationModal
-            isOpen={showPinVerification}
-            onVerified={handlePinVerified}
-            onCancel={handlePinVerificationCancel}
-            title="Accès au mode TPE"
-            description="Veuillez saisir votre code PIN pour accéder au mode TPE"
-          />
-        )}
-
-        {showChangePinModal && (
-          <ChangePinModal
-            isOpen={showChangePinModal}
-            onPinChanged={handlePinChanged}
-            onCancel={() => setShowChangePinModal(false)}
-          />
-        )}
-
-        {showSeedPhraseModal && walletData && (
-          <SeedPhraseModal
-            isOpen={showSeedPhraseModal}
-            onClose={() => setShowSeedPhraseModal(false)}
-            seedPhrase={walletData.mnemonic}
-            onShowSupport={handleShowSupport}
-          />
-        )}
-
-        {showMtPelerinWidget && walletData && (
-          <MtPelerinWidget
-            isOpen={showMtPelerinWidget}
-            onClose={() => setShowMtPelerinWidget(false)}
-            walletData={walletData}
-          />
-        )}
-
-        {showSupportModal && (
-          <SupportContactModal isOpen={showSupportModal} onClose={() => setShowSupportModal(false)} />
-        )}
-
-        {showPriceAlertModal && (
-          <PriceAlertModal isOpen={showPriceAlertModal} onClose={() => setShowPriceAlertModal(false)} />
-        )}
-      </div>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+        <LanguageProvider>
+          <CurrencyProvider>
+            <div className="min-h-screen bg-background">
+              {renderCurrentPage()}
+              <Toaster />
+            </div>
+          </CurrencyProvider>
+        </LanguageProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   )
 }
