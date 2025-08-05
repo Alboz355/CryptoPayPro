@@ -1,5 +1,5 @@
 // lib/wallet-utils.ts
-import * as walletCore from "@trustwallet/wallet-core"
+import { HDWallet, CoinType } from "@trustwallet/wallet-core"
 
 export interface WalletBalance {
   bitcoin: number
@@ -24,134 +24,34 @@ export interface Transaction {
   hash?: string
 }
 
-// Variable pour stocker le module initialisé
-let TrustWalletCore: any
-
 /**
- * Charge et initialise le module WebAssembly de Trust Wallet.
- * Doit être appelé avant toute autre fonction de portefeuille.
+ * Génère un nouveau portefeuille sécurisé avec une phrase mnémonique de 12 mots
+ * et dérive les adresses pour Bitcoin, Ethereum, et Algorand.
+ * Utilise la bibliothèque open-source de Trust Wallet.
  */
-async function initWalletCore() {
-  if (TrustWalletCore) {
-    return TrustWalletCore
-  }
-  try {
-    // L'initialisation est asynchrone
-    TrustWalletCore = await walletCore.init()
-    return TrustWalletCore
-  } catch (error) {
-    console.error("Erreur lors de l'initialisation de Trust Wallet Core:", error)
-    throw error
-  }
-}
+export function generateWallet(): { mnemonic: string; addresses: WalletAddresses } {
+  // Crée un nouveau portefeuille HD (Hierarchical Deterministic) avec une force de 128 bits (12 mots)
+  const wallet = HDWallet.create(128, "")
+  const mnemonic = wallet.mnemonic()
 
-/**
- * Génère un nouveau portefeuille sécurisé avec une phrase mnémonique de 12 mots.
- * Cette fonction est maintenant asynchrone car elle doit attendre l'initialisation du module WASM.
- */
-export async function generateWallet(): Promise<{ mnemonic: string; addresses: WalletAddresses }> {
-  try {
-    // S'assure que le module est chargé
-    const { HDWallet, CoinType } = await initWalletCore()
-
-    // Crée un nouveau portefeuille HD (Hierarchical Deterministic)
-    const wallet = HDWallet.create(128, "")
-    const mnemonic = wallet.mnemonic()
-
-    // Dérive les adresses pour chaque cryptomonnaie
-    const addresses: WalletAddresses = {
-      bitcoin: wallet.getAddressForCoin(CoinType.bitcoin),
-      ethereum: wallet.getAddressForCoin(CoinType.ethereum),
-      algorand: wallet.getAddressForCoin(CoinType.algorand),
-    }
-
-    // Libère la mémoire allouée par le module WASM (bonne pratique)
-    wallet.delete()
-
-    return { mnemonic, addresses }
-  } catch (error) {
-    console.error("Erreur Trust Wallet, utilisation du fallback:", error)
-    // Fallback vers génération simulée
-    return generateFallbackWallet()
-  }
-}
-
-/**
- * Génère un portefeuille de secours (simulation) en cas d'erreur avec Trust Wallet
- */
-function generateFallbackWallet(): { mnemonic: string; addresses: WalletAddresses } {
-  const words = [
-    "abandon",
-    "ability",
-    "able",
-    "about",
-    "above",
-    "absent",
-    "absorb",
-    "abstract",
-    "absurd",
-    "abuse",
-    "access",
-    "accident",
-    "account",
-    "accuse",
-    "achieve",
-    "acid",
-    "acoustic",
-    "acquire",
-    "across",
-    "act",
-    "action",
-    "actor",
-    "actress",
-    "actual",
-    "adapt",
-    "add",
-    "addict",
-    "address",
-    "adjust",
-    "admit",
-    "adult",
-    "advance",
-    "advice",
-    "aerobic",
-    "affair",
-    "afford",
-    "afraid",
-    "again",
-    "against",
-    "age",
-    "agent",
-    "agree",
-    "ahead",
-    "aim",
-    "air",
-    "airport",
-    "aisle",
-    "alarm",
-  ]
-
-  const mnemonic = Array.from({ length: 12 }, () => words[Math.floor(Math.random() * words.length)]).join(" ")
-
+  // Dérive les adresses pour chaque cryptomonnaie
   const addresses: WalletAddresses = {
-    bitcoin: generateSimulatedAddress("bitcoin"),
-    ethereum: generateSimulatedAddress("ethereum"),
-    algorand: generateSimulatedAddress("algorand"),
+    bitcoin: wallet.getAddressForCoin(CoinType.bitcoin),
+    ethereum: wallet.getAddressForCoin(CoinType.ethereum),
+    algorand: wallet.getAddressForCoin(CoinType.algorand),
   }
+
+  // Libère la mémoire allouée par le module WASM (bonne pratique)
+  wallet.delete()
 
   return { mnemonic, addresses }
 }
 
 /**
- * Valide une adresse de cryptomonnaie.
- * Doit aussi être asynchrone.
+ * Valide une adresse de cryptomonnaie en utilisant la logique de Trust Wallet.
  */
-export async function isValidCryptoAddress(
-  address: string,
-  crypto: "bitcoin" | "ethereum" | "algorand",
-): Promise<boolean> {
+export function isValidCryptoAddress(address: string, crypto: "bitcoin" | "ethereum" | "algorand"): boolean {
   try {
-    const { CoinType } = await initWalletCore()
     switch (crypto) {
       case "bitcoin":
         return CoinType.bitcoin.validate(address)
@@ -163,24 +63,65 @@ export async function isValidCryptoAddress(
         return false
     }
   } catch (error) {
-    console.warn("Trust Wallet validation failed, using fallback:", error)
-    // Fallback vers validation regex
-    return validateAddressFallback(address, crypto)
+    return false
   }
 }
 
-// Validation d'adresses de secours avec regex
-function validateAddressFallback(address: string, crypto: "bitcoin" | "ethereum" | "algorand"): boolean {
-  switch (crypto) {
-    case "bitcoin":
-      return /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$|^bc1[a-z0-9]{39,59}$/.test(address)
-    case "ethereum":
-      return /^0x[a-fA-F0-9]{40}$/.test(address)
-    case "algorand":
-      return /^[A-Z2-7]{58}$/.test(address)
-    default:
-      return false
+// --- Fonctions utilitaires conservées ---
+export function formatAddress(address: string, length = 8): string {
+  if (!address) return "Adresse non disponible"
+  if (address.length <= length * 2 + 3) return address
+  return `${address.slice(0, length)}...${address.slice(-length)}`
+}
+
+export function formatBalance(balance: string, symbol: string): string {
+  const num = Number.parseFloat(balance)
+  if (isNaN(num)) return `0.00 ${symbol}`
+  let fixedDigits = 6
+  if (symbol === "BTC" || symbol === "ETH") {
+    fixedDigits = 8
   }
+  return `${num.toFixed(fixedDigits)} ${symbol}`
+}
+
+// Génération d'adresses crypto (pour compatibilité avec l'existant)
+export function generateCryptoAddress(crypto: "bitcoin" | "ethereum" | "algorand"): string {
+  const savedAddresses = getSavedAddresses()
+
+  if (savedAddresses[crypto]) {
+    return savedAddresses[crypto]
+  }
+
+  let address: string
+
+  try {
+    // Utiliser Trust Wallet pour générer une adresse réelle
+    const wallet = HDWallet.create(128, "")
+
+    switch (crypto) {
+      case "bitcoin":
+        address = wallet.getAddressForCoin(CoinType.bitcoin)
+        break
+      case "ethereum":
+        address = wallet.getAddressForCoin(CoinType.ethereum)
+        break
+      case "algorand":
+        address = wallet.getAddressForCoin(CoinType.algorand)
+        break
+      default:
+        throw new Error(`Crypto non supportée: ${crypto}`)
+    }
+
+    wallet.delete()
+  } catch (error) {
+    console.error("Trust Wallet address generation failed:", error)
+    // Fallback vers génération simulée
+    address = generateSimulatedAddress(crypto)
+  }
+
+  // Sauvegarder l'adresse générée
+  saveAddress(crypto, address)
+  return address
 }
 
 // Génération d'adresses simulées pour le fallback
@@ -203,69 +144,6 @@ function generateRandomString(length: number, charset: string): string {
     result += charset.charAt(Math.floor(Math.random() * charset.length))
   }
   return result
-}
-
-// --- Fonctions utilitaires que l'on peut garder ---
-
-export function formatAddress(address: string, length = 8): string {
-  if (!address) return "Adresse non disponible"
-  if (address.length <= length * 2 + 3) return address
-  return `${address.slice(0, length)}...${address.slice(-length)}`
-}
-
-export function formatBalance(balance: string, symbol: string): string {
-  const num = Number.parseFloat(balance)
-  if (isNaN(num) || num === 0) return `0 ${symbol}`
-
-  let fixedDigits = 8
-  if (symbol === "ETH" || symbol === "BTC") {
-    fixedDigits = 8
-  } else if (symbol === "ALGO") {
-    fixedDigits = 6
-  }
-
-  return `${num.toFixed(fixedDigits)} ${symbol}`
-}
-
-// Génération d'adresses crypto (pour compatibilité avec l'existant)
-export async function generateCryptoAddress(crypto: "bitcoin" | "ethereum" | "algorand"): Promise<string> {
-  const savedAddresses = getSavedAddresses()
-
-  if (savedAddresses[crypto]) {
-    return savedAddresses[crypto]
-  }
-
-  let address: string
-
-  try {
-    // Utiliser Trust Wallet pour générer une adresse réelle
-    const { HDWallet, CoinType } = await initWalletCore()
-    const wallet = HDWallet.create(128, "")
-
-    switch (crypto) {
-      case "bitcoin":
-        address = wallet.getAddressForCoin(CoinType.bitcoin)
-        break
-      case "ethereum":
-        address = wallet.getAddressForCoin(CoinType.ethereum)
-        break
-      case "algorand":
-        address = wallet.getAddressForCoin(CoinType.algorand)
-        break
-      default:
-        throw new Error(`Crypto non supportée: ${crypto}`)
-    }
-
-    wallet.delete()
-  } catch (error) {
-    console.warn("Trust Wallet address generation failed, using fallback:", error)
-    // Fallback vers génération simulée
-    address = generateSimulatedAddress(crypto)
-  }
-
-  // Sauvegarder l'adresse générée
-  saveAddress(crypto, address)
-  return address
 }
 
 // Gestion du stockage local des adresses
@@ -300,9 +178,9 @@ export function getWalletBalances(): WalletBalance {
 
   try {
     const saved = localStorage.getItem("wallet_balances")
-    return saved ? JSON.parse(saved) : { bitcoin: 0.00234, ethereum: 0.5678, algorand: 1250.75 }
+    return saved ? JSON.parse(saved) : { bitcoin: 0, ethereum: 0, algorand: 0 }
   } catch {
-    return { bitcoin: 0.00234, ethereum: 0.5678, algorand: 1250.75 }
+    return { bitcoin: 0, ethereum: 0, algorand: 0 }
   }
 }
 
@@ -360,7 +238,7 @@ export function addTransaction(transaction: Omit<Transaction, "id" | "timestamp"
   }
 }
 
-export function validateAddress(address: string, crypto: "bitcoin" | "ethereum" | "algorand"): Promise<boolean> {
+export function validateAddress(address: string, crypto: "bitcoin" | "ethereum" | "algorand"): boolean {
   return isValidCryptoAddress(address, crypto)
 }
 
@@ -379,11 +257,8 @@ export function formatCryptoAmount(amount: number, crypto: "bitcoin" | "ethereum
 }
 
 // Simulation de réception de crypto (pour les tests)
-export async function simulateReceiveCrypto(
-  crypto: "bitcoin" | "ethereum" | "algorand",
-  amount: number,
-): Promise<void> {
-  const address = await generateCryptoAddress(crypto)
+export function simulateReceiveCrypto(crypto: "bitcoin" | "ethereum" | "algorand", amount: number): void {
+  const address = generateCryptoAddress(crypto)
 
   addTransaction({
     type: "received",

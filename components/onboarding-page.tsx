@@ -61,8 +61,8 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
     setCurrentStep("wallet-setup")
   }
 
-  // Changez la signature de la fonction pour qu'elle soit async
-  const handleCreateWallet = async () => {
+  // Supprimer "async" - la fonction est maintenant synchrone
+  const handleCreateWallet = () => {
     if (!selectedUserType) return
 
     setIsCreating(true)
@@ -70,37 +70,38 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
     setSuccess(null)
 
     try {
-      // Utilisez "await" car generateWallet est maintenant asynchrone
-      const wallet = await generateWallet()
+      // Supprimer "await" - generateWallet() est maintenant synchrone
+      const wallet = generateWallet()
 
       const walletData: WalletData = {
         mnemonic: wallet.mnemonic,
         addresses: wallet.addresses,
+        // Mettre les soldes à zéro, SANS SIMULATION
         balances: {
-          bitcoin: "0.00000000",
-          ethereum: "0.000000000000000000",
-          algorand: "0.000000",
+          bitcoin: "0",
+          ethereum: "0",
+          algorand: "0",
         },
         accounts: [
           {
             id: "btc-account",
             name: "Bitcoin Principal",
             address: wallet.addresses.bitcoin,
-            balance: "0.00000000",
+            balance: "0",
             currency: "BTC",
           },
           {
             id: "eth-account",
             name: "Ethereum Principal",
             address: wallet.addresses.ethereum,
-            balance: "0.000000000000000000",
+            balance: "0",
             currency: "ETH",
           },
           {
             id: "algo-account",
             name: "Algorand Principal",
             address: wallet.addresses.algorand,
-            balance: "0.000000",
+            balance: "0",
             currency: "ALGO",
           },
         ],
@@ -117,7 +118,7 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
     }
   }
 
-  const handleImportWallet = async () => {
+  const handleImportWallet = () => {
     if (!selectedUserType || !importSeedPhrase.trim()) {
       setError("Veuillez saisir une phrase de récupération valide")
       return
@@ -134,37 +135,37 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
         throw new Error("La phrase de récupération doit contenir 12 ou 24 mots")
       }
 
-      // Utilisez "await" car generateWallet est maintenant asynchrone
-      const wallet = await generateWallet()
+      // Supprimer "await" - generateWallet() est maintenant synchrone
+      const wallet = generateWallet()
 
       const walletData: WalletData = {
         mnemonic: importSeedPhrase,
         addresses: wallet.addresses,
         balances: {
-          bitcoin: "0.00000000",
-          ethereum: "0.000000000000000000",
-          algorand: "0.000000",
+          bitcoin: "0",
+          ethereum: "0",
+          algorand: "0",
         },
         accounts: [
           {
             id: "btc-account",
             name: "Bitcoin Principal",
             address: wallet.addresses.bitcoin,
-            balance: "0.00000000",
+            balance: "0",
             currency: "BTC",
           },
           {
             id: "eth-account",
             name: "Ethereum Principal",
             address: wallet.addresses.ethereum,
-            balance: "0.000000000000000000",
+            balance: "0",
             currency: "ETH",
           },
           {
             id: "algo-account",
             name: "Algorand Principal",
             address: wallet.addresses.algorand,
-            balance: "0.000000",
+            balance: "0",
             currency: "ALGO",
           },
         ],
