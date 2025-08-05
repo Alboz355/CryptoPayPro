@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Wallet, Download, Upload, User, Store, Shield, Key, AlertCircle, CheckCircle, Smartphone, Globe } from 'lucide-react'
 import { UserTypeSelection } from "@/components/user-type-selection"
-import { generateWallet } from "@/lib/wallet-utils"
+import { generateWallet, importWallet, isValidSeedPhrase } from "@/lib/wallet-utils"
 import { useLanguage } from "@/contexts/language-context"
 
 export type UserType = "client" | "merchant"
@@ -95,7 +95,7 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
         ],
       }
 
-      setSuccess("Portefeuille créé avec succès !")
+      setSuccess("Portefeuille créé avec succès en utilisant les standards de sécurité Trust Wallet !")
       setTimeout(() => {
         onWalletCreated(walletData, selectedUserType)
       }, 1000)
@@ -117,19 +117,19 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
     setSuccess(null)
 
     try {
-      // Validation de la seed phrase
-      const words = importSeedPhrase.trim().split(/\s+/)
-      if (words.length !== 12 && words.length !== 24) {
-        throw new Error("La phrase de récupération doit contenir 12 ou 24 mots")
+      // Validation de la seed phrase avec Trust Wallet Core
+      if (!isValidSeedPhrase(importSeedPhrase.trim())) {
+        throw new Error("La phrase de récupération n'est pas valide")
       }
 
       // Simulation de l'import
       await new Promise((resolve) => setTimeout(resolve, 2000))
 
-      const wallet = generateWallet()
+      // Importer le portefeuille avec Trust Wallet Core
+      const wallet = importWallet(importSeedPhrase.trim())
 
       const walletData: WalletData = {
-        mnemonic: importSeedPhrase,
+        mnemonic: wallet.mnemonic,
         addresses: wallet.addresses,
         balances: {
           bitcoin: "0.00000000",
@@ -161,7 +161,7 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
         ],
       }
 
-      setSuccess("Portefeuille importé avec succès !")
+      setSuccess("Portefeuille importé avec succès en utilisant les standards de sécurité Trust Wallet !")
       setTimeout(() => {
         onWalletCreated(walletData, selectedUserType)
       }, 1000)
@@ -173,8 +173,7 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
   }
 
   const validateSeedPhrase = (phrase: string): boolean => {
-    const words = phrase.trim().split(/\s+/)
-    return words.length === 12 || words.length === 24
+    return isValidSeedPhrase(phrase)
   }
 
   if (currentStep === "user-type") {
@@ -246,7 +245,7 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
                     <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100">{t.onboarding.walletSetup.create.title}</h3>
                     <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
                       {t.onboarding.walletSetup.create.description}. Vous recevrez une
-                      phrase de 12 mots à conserver précieusement.
+                      phrase de 12 mots cryptographiquement sécurisée à conserver précieusement.
                     </p>
                   </div>
                 </div>
@@ -254,8 +253,8 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
                 <div className="grid md:grid-cols-3 gap-4 my-8">
                   <div className="text-center p-6 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-xl border border-emerald-200 dark:border-emerald-700">
                     <Shield className="h-10 w-10 text-emerald-600 dark:text-emerald-400 mx-auto mb-3" />
-                    <h4 className="font-semibold text-emerald-800 dark:text-emerald-200">{t.onboarding.walletSetup.features.secure}</h4>
-                    <p className="text-sm text-emerald-700 dark:text-emerald-300">Chiffrement de niveau militaire</p>
+                    <h4 className="font-semibold text-emerald-800 dark:text-emerald-200">Sécurité Trust Wallet</h4>
+                    <p className="text-sm text-emerald-700 dark:text-emerald-300">Standards cryptographiques BIP39/BIP44</p>
                   </div>
                   <div className="text-center p-6 bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/20 dark:to-teal-800/20 rounded-xl border border-teal-200 dark:border-teal-700">
                     <Smartphone className="h-10 w-10 text-teal-600 dark:text-teal-400 mx-auto mb-3" />

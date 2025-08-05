@@ -10,6 +10,9 @@
   },
   "dependencies": {
     "@emailjs/browser": "latest",
+    "@ethersproject/address": "^5.8.0",
+    "@ethersproject/hdnode": "^5.8.0",
+    "@ethersproject/transactions": "^5.8.0",
     "@noble/hashes": "^1.4.0",
     "@radix-ui/react-accordion": "latest",
     "@radix-ui/react-alert-dialog": "latest",
