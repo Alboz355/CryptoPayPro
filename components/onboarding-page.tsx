@@ -8,9 +8,21 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Wallet, Download, Upload, User, Store, Shield, Key, AlertCircle, CheckCircle, Smartphone, Globe } from 'lucide-react'
+import {
+  Wallet,
+  Download,
+  Upload,
+  User,
+  Store,
+  Shield,
+  Key,
+  AlertCircle,
+  CheckCircle,
+  Smartphone,
+  Globe,
+} from "lucide-react"
 import { UserTypeSelection } from "@/components/user-type-selection"
-import { generateWallet } from "@/lib/wallet-utils"
+import { generateWallet, importWallet, validateMnemonic } from "@/lib/wallet-utils"
 import { useLanguage } from "@/contexts/language-context"
 
 export type UserType = "client" | "merchant"
@@ -57,9 +69,9 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
     setSuccess(null)
 
     try {
-      // Simulation de la création du portefeuille
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      await new Promise((resolve) => setTimeout(resolve, 1000))
 
+      // Use the new generateWallet function with Trust Wallet Core-like implementation
       const wallet = generateWallet()
 
       const walletData: WalletData = {
@@ -117,19 +129,13 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
     setSuccess(null)
 
     try {
-      // Validation de la seed phrase
-      const words = importSeedPhrase.trim().split(/\s+/)
-      if (words.length !== 12 && words.length !== 24) {
-        throw new Error("La phrase de récupération doit contenir 12 ou 24 mots")
-      }
+      await new Promise((resolve) => setTimeout(resolve, 1000))
 
-      // Simulation de l'import
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      const wallet = generateWallet()
+      // Use the new importWallet function with Trust Wallet Core-like implementation
+      const wallet = importWallet(importSeedPhrase)
 
       const walletData: WalletData = {
-        mnemonic: importSeedPhrase,
+        mnemonic: wallet.mnemonic,
         addresses: wallet.addresses,
         balances: {
           bitcoin: "0.00000000",
@@ -166,15 +172,18 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
         onWalletCreated(walletData, selectedUserType)
       }, 1000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de l'import du portefeuille")
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Erreur lors de l'import du portefeuille. Vérifiez votre phrase de récupération.",
+      )
     } finally {
       setIsCreating(false)
     }
   }
 
   const validateSeedPhrase = (phrase: string): boolean => {
-    const words = phrase.trim().split(/\s+/)
-    return words.length === 12 || words.length === 24
+    return validateMnemonic(phrase)
   }
 
   if (currentStep === "user-type") {
@@ -191,7 +200,7 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
               <Wallet className="h-8 w-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-              {t.onboarding.walletSetup.title}
+              Configuration du Portefeuille
             </h1>
           </div>
           <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto text-lg">
@@ -200,7 +209,10 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
               : "Configurez votre portefeuille professionnel pour accepter les paiements crypto et gérer votre activité commerciale."}
           </p>
           <div className="flex items-center justify-center gap-2 mt-4">
-            <Badge variant="outline" className="bg-white/70 dark:bg-gray-800/70 border-emerald-200 dark:border-emerald-700">
+            <Badge
+              variant="outline"
+              className="bg-white/70 dark:bg-gray-800/70 border-emerald-200 dark:border-emerald-700"
+            >
               {selectedUserType === "client" ? (
                 <>
                   <User className="h-4 w-4 mr-1 text-emerald-600" />
@@ -227,13 +239,19 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
               onValueChange={(value) => setWalletAction(value as "create" | "import")}
             >
               <TabsList className="grid w-full grid-cols-2 mb-8 bg-gray-100 dark:bg-gray-700">
-                <TabsTrigger value="create" className="flex items-center gap-2 data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
+                <TabsTrigger
+                  value="create"
+                  className="flex items-center gap-2 data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
+                >
                   <Download className="h-4 w-4" />
-                  {t.onboarding.walletSetup.create.title}
+                  Créer un nouveau portefeuille
                 </TabsTrigger>
-                <TabsTrigger value="import" className="flex items-center gap-2 data-[state=active]:bg-teal-500 data-[state=active]:text-white">
+                <TabsTrigger
+                  value="import"
+                  className="flex items-center gap-2 data-[state=active]:bg-teal-500 data-[state=active]:text-white"
+                >
                   <Upload className="h-4 w-4" />
-                  {t.onboarding.walletSetup.import.title}
+                  Importer un portefeuille
                 </TabsTrigger>
               </TabsList>
 
@@ -243,10 +261,12 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
                     <Key className="h-12 w-12 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100">{t.onboarding.walletSetup.create.title}</h3>
+                    <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100">
+                      Créer un nouveau portefeuille
+                    </h3>
                     <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
-                      {t.onboarding.walletSetup.create.description}. Vous recevrez une
-                      phrase de 12 mots à conserver précieusement.
+                      Générez un nouveau portefeuille sécurisé avec une phrase de récupération de 12 mots. Vous recevrez
+                      une phrase de 12 mots à conserver précieusement.
                     </p>
                   </div>
                 </div>
@@ -254,17 +274,17 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
                 <div className="grid md:grid-cols-3 gap-4 my-8">
                   <div className="text-center p-6 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-xl border border-emerald-200 dark:border-emerald-700">
                     <Shield className="h-10 w-10 text-emerald-600 dark:text-emerald-400 mx-auto mb-3" />
-                    <h4 className="font-semibold text-emerald-800 dark:text-emerald-200">{t.onboarding.walletSetup.features.secure}</h4>
+                    <h4 className="font-semibold text-emerald-800 dark:text-emerald-200">Sécurisé</h4>
                     <p className="text-sm text-emerald-700 dark:text-emerald-300">Chiffrement de niveau militaire</p>
                   </div>
                   <div className="text-center p-6 bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/20 dark:to-teal-800/20 rounded-xl border border-teal-200 dark:border-teal-700">
                     <Smartphone className="h-10 w-10 text-teal-600 dark:text-teal-400 mx-auto mb-3" />
-                    <h4 className="font-semibold text-teal-800 dark:text-teal-200">{t.onboarding.walletSetup.features.multiPlatform}</h4>
+                    <h4 className="font-semibold text-teal-800 dark:text-teal-200">Multi-plateforme</h4>
                     <p className="text-sm text-teal-700 dark:text-teal-300">Compatible tous appareils</p>
                   </div>
                   <div className="text-center p-6 bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-900/20 dark:to-cyan-800/20 rounded-xl border border-cyan-200 dark:border-cyan-700">
                     <Globe className="h-10 w-10 text-cyan-600 dark:text-cyan-400 mx-auto mb-3" />
-                    <h4 className="font-semibold text-cyan-800 dark:text-cyan-200">{t.onboarding.walletSetup.features.multiCrypto}</h4>
+                    <h4 className="font-semibold text-cyan-800 dark:text-cyan-200">Multi-crypto</h4>
                     <p className="text-sm text-cyan-700 dark:text-cyan-300">Bitcoin, Ethereum, Algorand</p>
                   </div>
                 </div>
@@ -285,12 +305,12 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
                   {isCreating ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      {t.onboarding.walletSetup.create.creating}
+                      Création en cours...
                     </>
                   ) : (
                     <>
                       <Download className="h-5 w-5 mr-2" />
-                      {t.onboarding.walletSetup.create.button}
+                      Créer mon portefeuille
                     </>
                   )}
                 </Button>
@@ -302,9 +322,11 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
                     <Upload className="h-12 w-12 text-teal-600 dark:text-teal-400" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100">{t.onboarding.walletSetup.import.title}</h3>
+                    <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-100">
+                      Importer un portefeuille
+                    </h3>
                     <p className="text-gray-600 dark:text-gray-300 max-w-md mx-auto">
-                      {t.onboarding.walletSetup.import.description}.
+                      Restaurez votre portefeuille existant en utilisant votre phrase de récupération.
                     </p>
                   </div>
                 </div>
@@ -316,7 +338,7 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
                     </Label>
                     <Textarea
                       id="seedPhrase"
-                      placeholder={t.onboarding.walletSetup.import.placeholder}
+                      placeholder="Entrez votre phrase de récupération de 12 ou 24 mots séparés par des espaces..."
                       value={importSeedPhrase}
                       onChange={(e) => setImportSeedPhrase(e.target.value)}
                       className="mt-2 min-h-[120px] resize-none bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
@@ -366,12 +388,12 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
                     {isCreating ? (
                       <>
                         <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                        {t.onboarding.walletSetup.import.importing}
+                        Import en cours...
                       </>
                     ) : (
                       <>
                         <Upload className="h-5 w-5 mr-2" />
-                        {t.onboarding.walletSetup.import.button}
+                        Importer mon portefeuille
                       </>
                     )}
                   </Button>
@@ -402,7 +424,7 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
                 disabled={isCreating}
                 className="bg-white/70 dark:bg-gray-700/70 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
               >
-                {t.common.back} - Changer de profil utilisateur
+                Retour - Changer de profil utilisateur
               </Button>
             </div>
           </CardContent>
@@ -411,6 +433,7 @@ export function OnboardingPage({ onWalletCreated }: OnboardingPageProps) {
         {/* Footer */}
         <div className="text-center mt-8 text-sm text-gray-500 dark:text-gray-400">
           <p>🔒 Vos données sont chiffrées et stockées localement sur votre appareil</p>
+          <p className="mt-2">🛡️ Moteur cryptographique inspiré de Trust Wallet Core (Open Source)</p>
         </div>
       </div>
     </div>

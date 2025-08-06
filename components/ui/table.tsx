@@ -31,10 +31,15 @@ const TableFooter = React.forwardRef<HTMLTableSectionElement, React.HTMLAttribut
 TableFooter.displayName = "TableFooter"
 
 const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTMLTableRowElement>>(
-  ({ className, ...props }, ref) => (
+  ({ className, onClick, ...props }, ref) => (
     <tr
       ref={ref}
-      className={cn("border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted", className)}
+      className={cn(
+        "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+        onClick && "cursor-pointer hover:bg-muted/70 active:bg-muted/90",
+        className
+      )}
+      onClick={onClick}
       {...props}
     />
   ),
@@ -56,8 +61,17 @@ const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<
 TableHead.displayName = "TableHead"
 
 const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<HTMLTableCellElement>>(
-  ({ className, ...props }, ref) => (
-    <td ref={ref} className={cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", className)} {...props} />
+  ({ className, onClick, ...props }, ref) => (
+    <td 
+      ref={ref} 
+      className={cn(
+        "p-4 align-middle [&:has([role=checkbox])]:pr-0 transition-colors duration-200", 
+        onClick && "cursor-pointer hover:bg-muted/50 active:bg-muted/70",
+        className
+      )} 
+      onClick={onClick}
+      {...props} 
+    />
   ),
 )
 TableCell.displayName = "TableCell"

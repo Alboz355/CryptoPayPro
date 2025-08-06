@@ -55,6 +55,7 @@ interface WalletData {
 
 export default function CryptoWalletApp() {
   const [currentPage, setCurrentPage] = useState<AppState>("onboarding")
+  const [nextPage, setNextPage] = useState<AppState | null>(null)
   const [walletData, setWalletData] = useState<WalletData | null>(null)
   const [userType, setUserType] = useState<UserType | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -66,8 +67,38 @@ export default function CryptoWalletApp() {
   const [showPriceAlertModal, setShowPriceAlertModal] = useState(false)
   const [pendingTPEAccess, setPendingTPEAccess] = useState(false)
   const [tpeAccessGranted, setTpeAccessGranted] = useState(false)
+  const [pageTransitionsEnabled, setPageTransitionsEnabled] = useState(true)
+  const [isTransitioning, setIsTransitioning] = useState(false)
+  const [transitionDirection, setTransitionDirection] = useState<'forward' | 'backward'>('forward')
+
+  // Define page hierarchy for navigation logic
+  const pageHierarchy: Record<AppState, AppState | null> = {
+    "onboarding": null,
+    "pin-setup": "onboarding",
+    "app-presentation": "pin-setup",
+    "dashboard": null,
+    "send": "dashboard",
+    "receive": "dashboard",
+    "settings": "dashboard",
+    "history": "dashboard",
+    "tpe": "dashboard",
+    "tpe-search": "tpe",
+    "tpe-billing": "tpe",
+    "tpe-payment": "tpe",
+    "tpe-conversion": "tpe",
+    "tpe-history": "tpe",
+    "tpe-settings": "tpe",
+    "tpe-vat-management": "tpe",
+    "tpe-statistics": "tpe"
+  }
 
   useEffect(() => {
+    // Load page transitions setting
+    const savedPageTransitions = localStorage.getItem("pageTransitions")
+    if (savedPageTransitions !== null) {
+      setPageTransitionsEnabled(JSON.parse(savedPageTransitions))
+    }
+
     // Vérifier si un portefeuille existe déjà
     const existingWallet = localStorage.getItem("wallet-data")
     const hasCompletedOnboarding = localStorage.getItem("onboarding-completed")
@@ -82,15 +113,12 @@ export default function CryptoWalletApp() {
         setCurrentPage("dashboard")
       } catch (error) {
         console.error("Erreur lors du chargement du portefeuille:", error)
-        // Ne pas supprimer les données, juste revenir à l'onboarding
         setCurrentPage("onboarding")
       }
     } else if (hasCompletedOnboarding && savedUserType && !hasSeenPresentation) {
-      // Si l'onboarding est fait mais pas la présentation
       setUserType(savedUserType)
       setCurrentPage("app-presentation")
     } else if (hasCompletedOnboarding && !savedUserType) {
-      // Si l'onboarding est fait mais pas le type d'utilisateur
       setCurrentPage("onboarding")
     } else {
       setCurrentPage("onboarding")
@@ -99,13 +127,35 @@ export default function CryptoWalletApp() {
     setIsLoading(false)
   }, [])
 
+  // Listen for changes to page transitions setting
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const savedPageTransitions = localStorage.getItem("pageTransitions")
+      if (savedPageTransitions !== null) {
+        setPageTransitionsEnabled(JSON.parse(savedPageTransitions))
+      }
+    }
+
+    // Check immediately
+    handleStorageChange()
+
+    // Listen for changes
+    const interval = setInterval(handleStorageChange, 100)
+    window.addEventListener('storage', handleStorageChange)
+    
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener(interval)
+    }
+  }, [])
+
   const handleWalletCreated = (wallet: WalletData, selectedUserType: UserType) => {
     try {
       setWalletData(wallet)
       setUserType(selectedUserType)
       localStorage.setItem("wallet-data", JSON.stringify(wallet))
       localStorage.setItem("user-type", selectedUserType)
-      setCurrentPage("pin-setup")
+      navigateToPage("pin-setup")
     } catch (error) {
       console.error("Erreur sauvegarde portefeuille:", error)
     }
@@ -113,10 +163,9 @@ export default function CryptoWalletApp() {
 
   const handlePinCreated = (pin: string) => {
     try {
-      // En production, utiliser un hash sécurisé
       localStorage.setItem("pin-hash", btoa(pin))
       localStorage.setItem("onboarding-completed", "true")
-      setCurrentPage("app-presentation")
+      navigateToPage("app-presentation")
     } catch (error) {
       console.error("Erreur sauvegarde PIN:", error)
     }
@@ -124,7 +173,42 @@ export default function CryptoWalletApp() {
 
   const handlePresentationComplete = () => {
     localStorage.setItem("presentation-seen", "true")
-    setCurrentPage("dashboard")
+    navigateToPage("dashboard")
+  }
+
+  const navigateToPage = (page: AppState) => {
+    if (page === currentPage || isTransitioning) return
+
+    // Determine direction
+    const currentParent = pageHierarchy[currentPage]
+    const targetParent = pageHierarchy[page]
+    
+    let direction: 'forward' | 'backward' = 'forward'
+    
+    if (currentParent === page) {
+      direction = 'backward'
+    } else if (targetParent === currentPage) {
+      direction = 'forward'
+    }
+
+    setTransitionDirection(direction)
+
+    // If transitions are disabled, navigate immediately
+    if (!pageTransitionsEnabled) {
+      setCurrentPage(page)
+      return
+    }
+
+    // Animated navigation
+    setIsTransitioning(true)
+    setNextPage(page)
+    
+    // Complete transition after animation
+    setTimeout(() => {
+      setCurrentPage(page)
+      setNextPage(null)
+      setIsTransitioning(false)
+    }, 600) // Match CSS animation duration
   }
 
   const handleNavigate = (page: AppState) => {
@@ -134,15 +218,16 @@ export default function CryptoWalletApp() {
       setShowPinVerification(true)
       return
     }
-    setCurrentPage(page)
+    
+    navigateToPage(page)
   }
 
   const handlePinVerified = () => {
     setShowPinVerification(false)
     if (pendingTPEAccess) {
       setPendingTPEAccess(false)
-      setTpeAccessGranted(true) // Accorder l'accès TPE pour cette session
-      setCurrentPage("tpe")
+      setTpeAccessGranted(true)
+      navigateToPage("tpe")
     }
   }
 
@@ -183,8 +268,8 @@ export default function CryptoWalletApp() {
   }
 
   const handleExitTPE = () => {
-    setTpeAccessGranted(false) // Révoquer l'accès TPE
-    setCurrentPage("dashboard")
+    setTpeAccessGranted(false)
+    navigateToPage("dashboard")
   }
 
   const handleUserTypeChange = (newUserType: UserType) => {
@@ -196,8 +281,8 @@ export default function CryptoWalletApp() {
     return <LoadingFallback />
   }
 
-  const renderCurrentPage = () => {
-    switch (currentPage) {
+  const renderPage = (page: AppState) => {
+    switch (page) {
       case "onboarding":
         return <OnboardingPage onWalletCreated={handleWalletCreated} />
       case "pin-setup":
@@ -242,7 +327,7 @@ export default function CryptoWalletApp() {
       case "tpe-statistics":
         return (
           <TPEDashboard
-            currentPage={currentPage}
+            currentPage={page}
             onNavigate={handleNavigate}
             onExitTPE={handleExitTPE}
             walletData={walletData}
@@ -263,8 +348,22 @@ export default function CryptoWalletApp() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-background text-foreground">
-        {renderCurrentPage()}
+      <div className={`page-container ${isTransitioning ? 'transitioning' : ''}`}>
+        {/* Current page - hidden during transition */}
+        <div className={`bg-background text-foreground ${isTransitioning ? 'page-hidden' : ''}`}>
+          {renderPage(currentPage)}
+        </div>
+
+        {/* Next page - visible during transition with animation */}
+        {nextPage && isTransitioning && pageTransitionsEnabled && (
+          <div 
+            className={`bg-background text-foreground ${
+              transitionDirection === 'forward' ? 'page-slide-enter' : 'page-slide-enter-back'
+            }`}
+          >
+            {renderPage(nextPage)}
+          </div>
+        )}
 
         {/* Modals */}
         {showPinVerification && (

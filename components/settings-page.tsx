@@ -19,23 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import {
-  ArrowLeft,
-  Shield,
-  Key,
-  Eye,
-  Bell,
-  Palette,
-  Globe,
-  Smartphone,
-  Trash2,
-  Download,
-  Sun,
-  Moon,
-  Monitor,
-  Languages,
-  DollarSign,
-} from "lucide-react"
+import { ArrowLeft, Shield, Key, Eye, Bell, Palette, Globe, Smartphone, Trash2, Download, Sun, Moon, Monitor, Languages, DollarSign, Zap } from 'lucide-react'
 import { useTheme } from "next-themes"
 import { useToast } from "@/hooks/use-toast"
 import { useLanguage } from "@/contexts/language-context"
@@ -72,6 +56,7 @@ export function SettingsPage({
   const [currency, setCurrency] = useState("CHF")
   const [biometrics, setBiometrics] = useState(false)
   const [autoLock, setAutoLock] = useState("5")
+  const [pageTransitions, setPageTransitions] = useState(true)
 
   useEffect(() => {
     setMounted(true)
@@ -80,18 +65,32 @@ export function SettingsPage({
     const savedCurrency = localStorage.getItem("currency")
     const savedBiometrics = localStorage.getItem("biometrics")
     const savedAutoLock = localStorage.getItem("autoLock")
+    const savedPageTransitions = localStorage.getItem("pageTransitions")
 
     if (savedNotifications) setNotifications(JSON.parse(savedNotifications))
     if (savedCurrency) setCurrency(savedCurrency)
     if (savedBiometrics) setBiometrics(JSON.parse(savedBiometrics))
     if (savedAutoLock) setAutoLock(savedAutoLock)
+    if (savedPageTransitions !== null) setPageTransitions(JSON.parse(savedPageTransitions))
   }, [])
+
+  // Save page transitions immediately when changed
+  const handlePageTransitionsChange = (checked: boolean) => {
+    setPageTransitions(checked)
+    localStorage.setItem("pageTransitions", JSON.stringify(checked))
+    
+    toast({
+      title: checked ? "Transitions activées" : "Transitions désactivées",
+      description: checked ? "Les animations de page sont maintenant activées" : "Navigation instantanée activée",
+    })
+  }
 
   const saveSettings = () => {
     localStorage.setItem("notifications", JSON.stringify(notifications))
     localStorage.setItem("currency", currency)
     localStorage.setItem("biometrics", JSON.stringify(biometrics))
     localStorage.setItem("autoLock", autoLock)
+    localStorage.setItem("pageTransitions", JSON.stringify(pageTransitions))
 
     toast({
       title: "Paramètres sauvegardés",
@@ -128,6 +127,7 @@ export function SettingsPage({
     localStorage.removeItem("currency")
     localStorage.removeItem("biometrics")
     localStorage.removeItem("autoLock")
+    localStorage.removeItem("pageTransitions")
 
     toast({
       title: "Portefeuille supprimé",
@@ -148,7 +148,7 @@ export function SettingsPage({
     <div className="min-h-screen bg-background dark:bg-background">
       <div className="max-w-4xl mx-auto p-4 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between sticky top-0 bg-background dark:bg-background z-10 py-2">
           <Button variant="ghost" onClick={() => onNavigate("dashboard")} className="bg-background dark:bg-background">
             <ArrowLeft className="h-5 w-5 mr-2" />
             {t.common.back}
@@ -203,6 +203,33 @@ export function SettingsPage({
                     </SelectContent>
                   </Select>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Animation Settings */}
+            <Card className="bg-card dark:bg-card">
+              <CardHeader>
+                <CardTitle className="text-foreground flex items-center">
+                  <Zap className="mr-2 h-5 w-5" />
+                  Animations et Performance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-foreground">Transitions de pages</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Activer les animations lors du changement de page
+                    </p>
+                  </div>
+                  <Switch 
+                    checked={pageTransitions} 
+                    onCheckedChange={handlePageTransitionsChange}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Désactiver cette option améliore les performances et rend la navigation instantanée
+                </p>
               </CardContent>
             </Card>
 

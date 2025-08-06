@@ -9,19 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import {
-  ArrowLeft,
-  Search,
-  Download,
-  Filter,
-  Eye,
-  Printer,
-  Calendar,
-  CreditCard,
-  TrendingUp,
-  Users,
-  DollarSign,
-} from "lucide-react"
+import { ArrowLeft, Search, Download, Filter, Eye, Printer, Calendar, CreditCard, TrendingUp, Users, DollarSign } from 'lucide-react'
 
 interface Transaction {
   id: string
@@ -421,69 +409,183 @@ export function TPEHistoryPage({ onNavigate, onBack }: TPEHistoryPageProps) {
                               <Eye className="h-4 w-4" />
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="bg-card dark:bg-card max-w-2xl">
+                          <DialogContent className="bg-card dark:bg-card max-w-4xl max-h-[90vh] overflow-y-auto">
                             <DialogHeader>
                               <DialogTitle className="text-foreground">Détails de la transaction</DialogTitle>
                             </DialogHeader>
                             {selectedTransaction && (
-                              <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div className="space-y-2">
-                                    <Label className="text-sm font-medium text-muted-foreground">ID Transaction</Label>
-                                    <p className="text-foreground">{selectedTransaction.id}</p>
+                              <div className="space-y-6">
+                                {/* Header avec statut */}
+                                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border">
+                                  <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-white dark:bg-gray-800 rounded-full shadow-sm">
+                                      <CreditCard className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                                    </div>
+                                    <div>
+                                      <h3 className="text-lg font-bold text-foreground">Transaction #{selectedTransaction.id}</h3>
+                                      <p className="text-sm text-muted-foreground">Référence: {selectedTransaction.reference}</p>
+                                    </div>
                                   </div>
-                                  <div className="space-y-2">
-                                    <Label className="text-sm font-medium text-muted-foreground">Référence</Label>
-                                    <p className="text-foreground">{selectedTransaction.reference}</p>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label className="text-sm font-medium text-muted-foreground">Date et Heure</Label>
-                                    <p className="text-foreground">
-                                      {selectedTransaction.date} à {selectedTransaction.time}
-                                    </p>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label className="text-sm font-medium text-muted-foreground">Client</Label>
-                                    <p className="text-foreground">{selectedTransaction.customer}</p>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label className="text-sm font-medium text-muted-foreground">Montant</Label>
-                                    <p className="text-foreground font-bold">
-                                      {selectedTransaction.amount.toFixed(2)} {selectedTransaction.currency}
-                                    </p>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label className="text-sm font-medium text-muted-foreground">Frais</Label>
-                                    <p className="text-foreground">
-                                      {selectedTransaction.fee.toFixed(2)} {selectedTransaction.currency}
-                                    </p>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label className="text-sm font-medium text-muted-foreground">Type</Label>
-                                    <Badge className={getTypeColor(selectedTransaction.type)}>
-                                      {getTypeLabel(selectedTransaction.type)}
-                                    </Badge>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label className="text-sm font-medium text-muted-foreground">Statut</Label>
-                                    <Badge className={getStatusColor(selectedTransaction.status)}>
-                                      {getStatusLabel(selectedTransaction.status)}
-                                    </Badge>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label className="text-sm font-medium text-muted-foreground">
-                                      Méthode de paiement
-                                    </Label>
-                                    <p className="text-foreground">{selectedTransaction.paymentMethod}</p>
-                                  </div>
+                                  <Badge className={`${getStatusColor(selectedTransaction.status)} text-sm px-3 py-1`}>
+                                    {getStatusLabel(selectedTransaction.status)}
+                                  </Badge>
                                 </div>
-                                <div className="flex gap-2 pt-4">
-                                  <Button onClick={() => printReceipt(selectedTransaction)} className="flex-1">
+
+                                {/* Informations principales */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  {/* Détails client */}
+                                  <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/10 dark:to-emerald-900/10 border-green-200 dark:border-green-800">
+                                    <CardHeader className="pb-3">
+                                      <CardTitle className="text-green-800 dark:text-green-400 flex items-center gap-2">
+                                        <Users className="h-5 w-5" />
+                                        Informations Client
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                      <div>
+                                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nom du client</Label>
+                                        <p className="text-lg font-semibold text-foreground">{selectedTransaction.customer}</p>
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Méthode de paiement</Label>
+                                        <p className="text-foreground flex items-center gap-2">
+                                          <CreditCard className="h-4 w-4" />
+                                          {selectedTransaction.paymentMethod}
+                                        </p>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+
+                                  {/* Détails financiers */}
+                                  <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/10 dark:to-cyan-900/10 border-blue-200 dark:border-blue-800">
+                                    <CardHeader className="pb-3">
+                                      <CardTitle className="text-blue-800 dark:text-blue-400 flex items-center gap-2">
+                                        <DollarSign className="h-5 w-5" />
+                                        Détails Financiers
+                                      </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                      <div>
+                                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Montant principal</Label>
+                                        <p className="text-2xl font-bold text-foreground">
+                                          {selectedTransaction.amount.toFixed(2)} {selectedTransaction.currency}
+                                        </p>
+                                      </div>
+                                      <div className="flex justify-between items-center">
+                                        <div>
+                                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Frais</Label>
+                                          <p className="text-foreground font-semibold">
+                                            {selectedTransaction.fee.toFixed(2)} {selectedTransaction.currency}
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</Label>
+                                          <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                                            {(selectedTransaction.amount + selectedTransaction.fee).toFixed(2)} {selectedTransaction.currency}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                </div>
+
+                                {/* Détails de la transaction */}
+                                <Card className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-900/10 border-purple-200 dark:border-purple-800">
+                                  <CardHeader className="pb-3">
+                                    <CardTitle className="text-purple-800 dark:text-purple-400 flex items-center gap-2">
+                                      <TrendingUp className="h-5 w-5" />
+                                      Détails de la Transaction
+                                    </CardTitle>
+                                  </CardHeader>
+                                  <CardContent>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                      <div className="space-y-2">
+                                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Type d'opération</Label>
+                                        <Badge className={`${getTypeColor(selectedTransaction.type)} w-fit`}>
+                                          {getTypeLabel(selectedTransaction.type)}
+                                        </Badge>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Date et heure</Label>
+                                        <p className="text-foreground font-mono">
+                                          {new Date(selectedTransaction.date).toLocaleDateString('fr-CH', {
+                                            weekday: 'long',
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric'
+                                          })}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground font-mono">{selectedTransaction.time}</p>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ID Système</Label>
+                                        <p className="text-foreground font-mono text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                                          {selectedTransaction.id}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+
+                                {/* Timeline de la transaction */}
+                                <Card className="bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-900/10 dark:to-yellow-900/10 border-orange-200 dark:border-orange-800">
+                                  <CardHeader className="pb-3">
+                                    <CardTitle className="text-orange-800 dark:text-orange-400 flex items-center gap-2">
+                                      <Calendar className="h-5 w-5" />
+                                      Timeline de la Transaction
+                                    </CardTitle>
+                                  </CardHeader>
+                                  <CardContent>
+                                    <div className="space-y-4">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                                        <div>
+                                          <p className="font-semibold text-foreground">Transaction initiée</p>
+                                          <p className="text-sm text-muted-foreground">{selectedTransaction.date} à {selectedTransaction.time}</p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                                        <div>
+                                          <p className="font-semibold text-foreground">Paiement traité</p>
+                                          <p className="text-sm text-muted-foreground">Via {selectedTransaction.paymentMethod}</p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-3">
+                                        <div className={`w-3 h-3 rounded-full ${
+                                          selectedTransaction.status === 'completed' ? 'bg-green-500' : 
+                                          selectedTransaction.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
+                                        }`}></div>
+                                        <div>
+                                          <p className="font-semibold text-foreground">Statut: {getStatusLabel(selectedTransaction.status)}</p>
+                                          <p className="text-sm text-muted-foreground">
+                                            {selectedTransaction.status === 'completed' ? 'Transaction finalisée avec succès' :
+                                             selectedTransaction.status === 'pending' ? 'En cours de traitement' :
+                                             'Échec du traitement'}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+
+                                {/* Actions */}
+                                <div className="flex gap-3 pt-4">
+                                  <Button onClick={() => printReceipt(selectedTransaction)} className="flex-1 bg-blue-600 hover:bg-blue-700">
                                     <Printer className="h-4 w-4 mr-2" />
-                                    Imprimer Reçu
+                                    Imprimer Reçu Détaillé
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(`Transaction ${selectedTransaction.id} - ${selectedTransaction.reference}`)
+                                    }} 
+                                    className="flex-1"
+                                  >
+                                    📋 Copier Référence
                                   </Button>
                                   <Button variant="outline" onClick={() => setShowDetails(false)} className="flex-1">
-                                    Fermer
+                                    ✕ Fermer
                                   </Button>
                                 </div>
                               </div>

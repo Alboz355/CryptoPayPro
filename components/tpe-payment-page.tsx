@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, QrCode, Copy, Printer, RefreshCw, CheckCircle, Clock } from "lucide-react"
+import { ArrowLeft, QrCode, Copy, Printer, RefreshCw, CheckCircle, Clock } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
 import { cryptoService } from "@/lib/crypto-prices"
 import type { AppState } from "@/app/page"
@@ -36,6 +36,7 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
   const [loading, setLoading] = useState(false)
   const [paymentStatus, setPaymentStatus] = useState<"waiting" | "received" | "confirmed">("waiting")
   const { toast } = useToast()
+  const [paymentMethod, setPaymentMethod] = useState<"qr" | "nfc">("qr")
 
   const cryptoOptions: Record<string, CryptoOption> = {
     bitcoin: {
@@ -330,31 +331,178 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
             {/* QR Code */}
             <Card className="bg-card dark:bg-card">
               <CardHeader>
-                <CardTitle className="text-foreground flex items-center">
-                  <QrCode className="mr-2 h-5 w-5" />
-                  Code QR de Paiement
-                </CardTitle>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-center">
+                    <Tabs value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as "qr" | "nfc")} className="w-full max-w-xs">
+                      <TabsList className="grid w-full grid-cols-2 bg-muted dark:bg-muted">
+                        <TabsTrigger value="qr" className="flex items-center gap-2">
+                          <QrCode className="h-4 w-4" />
+                          QR Code
+                        </TabsTrigger>
+                        <TabsTrigger value="nfc" className="flex items-center gap-2">
+                          <div className="h-4 w-4 rounded-full bg-blue-500 flex items-center justify-center">
+                            <div className="h-2 w-2 rounded-full bg-white"></div>
+                          </div>
+                          NFC
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </div>
+                  <CardTitle className="text-foreground flex items-center justify-center">
+                    {paymentMethod === "qr" ? (
+                      <>
+                        <QrCode className="mr-2 h-5 w-5" />
+                        Code QR de Paiement
+                      </>
+                    ) : (
+                      <>
+                        <div className="mr-2 h-5 w-5 rounded-full bg-blue-500 flex items-center justify-center">
+                          <div className="h-2.5 w-2.5 rounded-full bg-white"></div>
+                        </div>
+                        Paiement NFC
+                      </>
+                    )}
+                  </CardTitle>
+                </div>
               </CardHeader>
               <CardContent className="text-center space-y-4">
-                {qrCodeUrl ? (
-                  <div className="bg-white p-4 rounded-lg inline-block">
-                    <img
-                      src={qrCodeUrl || "/placeholder.svg"}
-                      alt="QR Code de paiement"
-                      className="w-64 h-64 mx-auto"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement
-                        target.src = `/placeholder.svg?height=256&width=256&text=QR+Code`
-                      }}
-                    />
-                  </div>
+                {paymentMethod === "qr" ? (
+                  // QR Code Content
+                  <>
+                    {qrCodeUrl ? (
+                      <div className="bg-white p-4 rounded-lg inline-block">
+                        <img
+                          src={qrCodeUrl || "/placeholder.svg"}
+                          alt="QR Code de paiement"
+                          className="w-64 h-64 mx-auto"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.src = `/placeholder.svg?height=256&width=256&text=QR+Code`
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-64 h-64 bg-muted dark:bg-muted rounded-lg flex items-center justify-center mx-auto">
+                        <p className="text-muted-foreground">Saisissez un montant</p>
+                      </div>
+                    )}
+                  </>
                 ) : (
-                  <div className="w-64 h-64 bg-muted dark:bg-muted rounded-lg flex items-center justify-center mx-auto">
-                    <p className="text-muted-foreground">Saisissez un montant</p>
+                  // NFC Content
+                  <div className="space-y-6">
+                    <div className="w-64 h-64 flex items-center justify-center mx-auto relative">
+                      {/* NFC Logo with proper design */}
+                      <div className="relative">
+                        {/* Pulsation rings */}
+                        {paymentStatus === "waiting" && (
+                          <>
+                            <div className="absolute inset-0 -m-8 rounded-full border-2 border-blue-500/30 animate-ping"></div>
+                            <div className="absolute inset-0 -m-12 rounded-full border-2 border-blue-500/20 animate-ping" style={{animationDelay: '0.5s'}}></div>
+                            <div className="absolute inset-0 -m-16 rounded-full border-2 border-blue-500/10 animate-ping" style={{animationDelay: '1s'}}></div>
+                          </>
+                        )}
+                        
+                        {/* Green charging rings when payment received */}
+                        {(paymentStatus === "received" || paymentStatus === "confirmed") && (
+                          <>
+                            <div className="absolute inset-0 -m-8 rounded-full border-2 border-green-500/50 animate-pulse"></div>
+                            <div className="absolute inset-0 -m-12 rounded-full border-2 border-green-500/30 animate-pulse" style={{animationDelay: '0.3s'}}></div>
+                            <div className="absolute inset-0 -m-16 rounded-full border-2 border-green-500/20 animate-pulse" style={{animationDelay: '0.6s'}}></div>
+                          </>
+                        )}
+
+                        {/* Main NFC Logo */}
+                        <div className={`relative transition-all duration-500 ${
+                          paymentStatus === "received" ? "text-green-500 scale-110" : 
+                          paymentStatus === "confirmed" ? "text-green-600 scale-110" : 
+                          "text-gray-800 dark:text-gray-200"
+                        }`}>
+                          <svg 
+                            width="100" 
+                            height="100" 
+                            viewBox="0 0 100 100" 
+                            fill="none"
+                            className="drop-shadow-lg"
+                          >
+                            {/* NFC Symbol Base */}
+                            <circle 
+                              cx="50" 
+                              cy="50" 
+                              r="45" 
+                              stroke="currentColor" 
+                              strokeWidth="3" 
+                              fill="none"
+                              className="opacity-20"
+                            />
+                            
+                            {/* Inner NFC Waves */}
+                            <path 
+                              d="M30 35 Q35 30 40 35 Q45 40 50 35 Q55 30 60 35 Q65 40 70 35" 
+                              stroke="currentColor" 
+                              strokeWidth="4" 
+                              fill="none"
+                              strokeLinecap="round"
+                              className="animate-pulse"
+                            />
+                            
+                            <path 
+                              d="M25 50 Q35 40 45 50 Q55 60 65 50 Q75 40 85 50" 
+                              stroke="currentColor" 
+                              strokeWidth="4" 
+                              fill="none"
+                              strokeLinecap="round"
+                              className="animate-pulse"
+                              style={{animationDelay: '0.5s'}}
+                            />
+                            
+                            <path 
+                              d="M30 65 Q35 70 40 65 Q45 60 50 65 Q55 70 60 65 Q65 60 70 65" 
+                              stroke="currentColor" 
+                              strokeWidth="4" 
+                              fill="none"
+                              strokeLinecap="round"
+                              className="animate-pulse"
+                              style={{animationDelay: '1s'}}
+                            />
+                            
+                            {/* NFC Text */}
+                            <text 
+                              x="50" 
+                              y="85" 
+                              textAnchor="middle" 
+                              className="text-xs font-bold fill-current"
+                            >
+                              NFC
+                            </text>
+                          </svg>
+                        </div>
+                        
+                        {/* Charging effect overlay */}
+                        {paymentStatus === "received" && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-20 h-20 rounded-full bg-green-500/20 animate-ping"></div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-muted dark:bg-muted rounded-lg p-4">
+                      <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
+                        <div className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                          paymentStatus === "waiting" ? "bg-blue-500 animate-pulse shadow-lg shadow-blue-500/50" :
+                          paymentStatus === "received" ? "bg-yellow-500 animate-pulse shadow-lg shadow-yellow-500/50" :
+                          "bg-green-500 shadow-lg shadow-green-500/50"
+                        }`}></div>
+                        <span className="font-medium">Terminal NFC activé pour {currentCrypto.name}</span>
+                      </div>
+                      <p className="text-xs text-center mt-2 text-muted-foreground">
+                        Approchez votre portefeuille crypto compatible NFC
+                      </p>
+                    </div>
                   </div>
                 )}
 
-                {/* Payment Status */}
+                {/* Payment Status - same for both methods */}
                 <div className="space-y-2">
                   {paymentStatus === "waiting" && (
                     <Badge
@@ -362,7 +510,7 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
                       className="bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400"
                     >
                       <Clock className="mr-1 h-3 w-3" />
-                      En attente de paiement
+                      En attente de paiement {paymentMethod === "nfc" ? "NFC" : "QR"}
                     </Badge>
                   )}
                   {paymentStatus === "received" && (
@@ -385,27 +533,60 @@ export function TPEPaymentPage({ onNavigate, onBack, walletData }: TPEPaymentPag
                   )}
                 </div>
 
-                {/* Action Buttons */}
+                {/* Action Buttons - conditional based on payment method */}
                 <div className="flex gap-2 justify-center">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyToClipboard(currentCrypto.address, "Adresse")}
-                    className="bg-background dark:bg-background"
-                  >
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copier adresse
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={printReceipt}
-                    disabled={!amount}
-                    className="bg-background dark:bg-background"
-                  >
-                    <Printer className="mr-2 h-4 w-4" />
-                    Imprimer
-                  </Button>
+                  {paymentMethod === "qr" ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(currentCrypto.address, "Adresse")}
+                        className="bg-background dark:bg-background"
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copier adresse
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={printReceipt}
+                        disabled={!amount}
+                        className="bg-background dark:bg-background"
+                      >
+                        <Printer className="mr-2 h-4 w-4" />
+                        Imprimer
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          toast({
+                            title: "NFC activé",
+                            description: "Terminal prêt à recevoir les paiements NFC",
+                          })
+                        }}
+                        className="bg-background dark:bg-background"
+                      >
+                        <div className="mr-2 h-4 w-4 rounded-full bg-blue-500 flex items-center justify-center">
+                          <div className="h-2 w-2 rounded-full bg-white"></div>
+                        </div>
+                        Activer NFC
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={printReceipt}
+                        disabled={!amount}
+                        className="bg-background dark:bg-background"
+                      >
+                        <Printer className="mr-2 h-4 w-4" />
+                        Imprimer
+                      </Button>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
