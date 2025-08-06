@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Shield, Eye, EyeOff, CheckCircle, AlertTriangle, Lock } from "lucide-react"
+import { Shield, Eye, EyeOff, CheckCircle, AlertTriangle, Lock } from 'lucide-react'
 
 interface PinSetupPageProps {
   onPinCreated: (pin: string) => void
@@ -22,11 +22,8 @@ export function PinSetupPage({ onPinCreated }: PinSetupPageProps) {
   const [isCreating, setIsCreating] = useState(false)
 
   const validatePin = (pinValue: string) => {
-    if (pinValue.length < 4) {
-      return "Le PIN doit contenir au moins 4 chiffres"
-    }
-    if (pinValue.length > 8) {
-      return "Le PIN ne peut pas dépasser 8 chiffres"
+    if (pinValue.length !== 4) {
+      return "Le PIN doit contenir exactement 4 chiffres"
     }
     if (!/^\d+$/.test(pinValue)) {
       return "Le PIN ne peut contenir que des chiffres"
@@ -71,8 +68,20 @@ export function PinSetupPage({ onPinCreated }: PinSetupPageProps) {
     }
   }
 
-  const isPinValid = pin.length >= 4 && validatePin(pin) === ""
-  const isPinMatching = pin === confirmPin && confirmPin.length > 0
+  const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 4)
+    setPin(value)
+    setError("")
+  }
+
+  const handleConfirmPinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 4)
+    setConfirmPin(value)
+    setError("")
+  }
+
+  const isPinValid = pin.length === 4 && validatePin(pin) === ""
+  const isPinMatching = pin === confirmPin && confirmPin.length === 4
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -85,7 +94,7 @@ export function PinSetupPage({ onPinCreated }: PinSetupPageProps) {
           <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             Sécuriser votre portefeuille
           </h1>
-          <p className="text-gray-600 dark:text-gray-300">Créez un PIN pour protéger l'accès à votre portefeuille</p>
+          <p className="text-gray-600 dark:text-gray-300">Créez un PIN à 4 chiffres pour protéger l'accès à votre portefeuille</p>
         </div>
 
         {/* Main Card */}
@@ -96,7 +105,7 @@ export function PinSetupPage({ onPinCreated }: PinSetupPageProps) {
               Configuration du PIN
             </CardTitle>
             <CardDescription className="text-gray-600 dark:text-gray-400">
-              Choisissez un PIN sécurisé de 4 à 8 chiffres
+              Choisissez un PIN sécurisé de 4 chiffres
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -104,17 +113,17 @@ export function PinSetupPage({ onPinCreated }: PinSetupPageProps) {
               {/* PIN Input */}
               <div className="space-y-2">
                 <Label htmlFor="pin" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Nouveau PIN
+                  Nouveau PIN (4 chiffres)
                 </Label>
                 <div className="relative">
                   <Input
                     id="pin"
                     type={showPin ? "text" : "password"}
                     value={pin}
-                    onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
-                    placeholder="Entrez votre PIN"
-                    className="pr-12 text-center text-lg font-mono tracking-widest"
-                    maxLength={8}
+                    onChange={handlePinChange}
+                    placeholder="••••"
+                    className="pr-12 text-center text-2xl font-mono tracking-[0.5em] h-14"
+                    maxLength={4}
                   />
                   <Button
                     type="button"
@@ -125,6 +134,11 @@ export function PinSetupPage({ onPinCreated }: PinSetupPageProps) {
                   >
                     {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">
+                    {pin.length}/4 chiffres
+                  </p>
                 </div>
                 {pin.length > 0 && (
                   <div className="flex items-center gap-2 text-xs">
@@ -154,11 +168,16 @@ export function PinSetupPage({ onPinCreated }: PinSetupPageProps) {
                     id="confirmPin"
                     type={showPin ? "text" : "password"}
                     value={confirmPin}
-                    onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
-                    placeholder="Confirmez votre PIN"
-                    className="pr-12 text-center text-lg font-mono tracking-widest"
-                    maxLength={8}
+                    onChange={handleConfirmPinChange}
+                    placeholder="••••"
+                    className="pr-12 text-center text-2xl font-mono tracking-[0.5em] h-14"
+                    maxLength={4}
                   />
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">
+                    {confirmPin.length}/4 chiffres
+                  </p>
                 </div>
                 {confirmPin.length > 0 && (
                   <div className="flex items-center gap-2 text-xs">
@@ -182,7 +201,7 @@ export function PinSetupPage({ onPinCreated }: PinSetupPageProps) {
               <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
                 <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2">Conseils de sécurité :</h4>
                 <ul className="text-xs text-blue-700 dark:text-blue-400 space-y-1">
-                  <li>• Utilisez un PIN unique que vous seul connaissez</li>
+                  <li>• Utilisez un PIN unique de 4 chiffres</li>
                   <li>• Évitez les séquences simples (1234, 0000)</li>
                   <li>• Ne partagez jamais votre PIN avec personne</li>
                   <li>• Mémorisez-le plutôt que de l'écrire</li>

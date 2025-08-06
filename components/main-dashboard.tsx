@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Send, Download, ShoppingCart, CreditCard, Bell, Settings, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, XCircle, TrendingUp, TrendingDown, DollarSign, Target, Users, BarChart3 } from 'lucide-react'
+import { Send, Download, ShoppingCart, CreditCard, Bell, Settings, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, XCircle, TrendingUp, TrendingDown, DollarSign, Target, Users, BarChart3, Eye, EyeOff } from 'lucide-react'
 import { useLanguage } from '@/contexts/language-context'
 import { getTranslation } from '@/lib/i18n'
 import { CryptoList } from './crypto-list'
@@ -16,11 +16,43 @@ import { RealTimePrices } from './real-time-prices'
 interface MainDashboardProps {
   userType: 'individual' | 'business'
   onNavigate: (page: string) => void
+  walletData?: any
+  onShowMtPelerin?: () => void
+  onShowPriceAlert?: () => void
 }
 
-export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
+export function MainDashboard({ userType, onNavigate, walletData, onShowMtPelerin, onShowPriceAlert }: MainDashboardProps) {
   const { language } = useLanguage()
   const t = getTranslation(language)
+
+  const [focusMode, setFocusMode] = useState(false)
+
+  useEffect(() => {
+    const savedFocusMode = localStorage.getItem("focus-mode")
+    if (savedFocusMode) {
+      const focusModeEnabled = JSON.parse(savedFocusMode)
+      setFocusMode(focusModeEnabled)
+      // Apply focus mode to body
+      if (focusModeEnabled) {
+        document.body.classList.add('focus-mode')
+      } else {
+        document.body.classList.remove('focus-mode')
+      }
+    }
+  }, [])
+
+  const toggleFocusMode = () => {
+    const newFocusMode = !focusMode
+    setFocusMode(newFocusMode)
+    localStorage.setItem("focus-mode", JSON.stringify(newFocusMode))
+    
+    // Apply focus mode styles immediately
+    if (newFocusMode) {
+      document.body.classList.add('focus-mode')
+    } else {
+      document.body.classList.remove('focus-mode')
+    }
+  }
   
   const [totalBalance] = useState(12847.32)
   const [monthlyChange] = useState(8.5)
@@ -104,10 +136,19 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background ios-content-safe">
+      {/* Focus Mode Toggle */}
+      <button
+        onClick={toggleFocusMode}
+        className="focus-mode-toggle"
+        title={focusMode ? "Désactiver le mode focus" : "Activer le mode focus"}
+      >
+        {focusMode ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+      </button>
+
       <div className="container mx-auto p-4 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between ios-header-safe">
           <div>
             <h1 className="text-3xl font-bold">
               {userType === 'business' ? t.dashboard.professionalTitle : t.dashboard.title}
@@ -117,7 +158,7 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => onNavigate('price-alerts')}>
+            <Button variant="outline" size="icon" onClick={() => onShowPriceAlert && onShowPriceAlert()}>
               <Bell className="h-4 w-4" />
             </Button>
             <Button variant="outline" size="icon" onClick={() => onNavigate('settings')}>
@@ -127,12 +168,14 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
         </div>
 
         {/* Balance Card */}
-        <Card className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+        <Card className="bg-gradient-to-r from-blue-600 to-purple-600 text-white card-hover">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-blue-100 mb-2">{t.dashboard.totalBalance}</p>
-                <p className="text-3xl font-bold">CHF {totalBalance.toLocaleString('fr-CH', { minimumFractionDigits: 2 })}</p>
+                <p className={`text-3xl font-bold balance-amount ${focusMode ? 'sensitive-data' : ''}`}>
+                  CHF {totalBalance.toLocaleString('fr-CH', { minimumFractionDigits: 2 })}
+                </p>
                 <div className="flex items-center gap-2 mt-2">
                   {monthlyChange >= 0 ? (
                     <TrendingUp className="h-4 w-4 text-green-300" />
@@ -158,7 +201,7 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Button 
             variant="outline" 
-            className="h-20 flex-col gap-2"
+            className="h-20 flex-col gap-2 card-hover button-press btn-enhanced"
             onClick={() => onNavigate('send')}
           >
             <Send className="h-6 w-6" />
@@ -166,7 +209,7 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
           </Button>
           <Button 
             variant="outline" 
-            className="h-20 flex-col gap-2"
+            className="h-20 flex-col gap-2 card-hover button-press btn-enhanced"
             onClick={() => onNavigate('receive')}
           >
             <Download className="h-6 w-6" />
@@ -174,15 +217,15 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
           </Button>
           <Button 
             variant="outline" 
-            className="h-20 flex-col gap-2"
-            onClick={() => onNavigate('buy')}
+            className="h-20 flex-col gap-2 card-hover button-press btn-enhanced"
+            onClick={() => onShowMtPelerin && onShowMtPelerin()}
           >
             <ShoppingCart className="h-6 w-6" />
             <span>{t.dashboard.quickActions.buy}</span>
           </Button>
           <Button 
             variant="outline" 
-            className="h-20 flex-col gap-2"
+            className="h-20 flex-col gap-2 card-hover button-press btn-enhanced"
             onClick={() => onNavigate('tpe')}
           >
             <CreditCard className="h-6 w-6" />
@@ -256,7 +299,7 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Portfolio */}
-          <Card>
+          <Card className="card-hover">
             <CardHeader>
               <CardTitle>{t.dashboard.portfolio}</CardTitle>
             </CardHeader>
@@ -266,17 +309,17 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
           </Card>
 
           {/* Recent Transactions */}
-          <Card>
+          <Card className="card-hover">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>{t.dashboard.recentTransactions}</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => onNavigate('history')}>
+              <Button variant="ghost" size="sm" onClick={() => onNavigate('history')} className="button-press">
                 {t.dashboard.transactions.viewAll}
               </Button>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {recentTransactions.map((tx) => (
-                  <div key={tx.id} className="flex items-center justify-between p-3 rounded-lg border">
+                  <div key={tx.id} className="flex items-center justify-between p-3 rounded-lg border card-hover">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-full ${
                         tx.type === 'received' 
@@ -302,10 +345,10 @@ export function MainDashboard({ userType, onNavigate }: MainDashboardProps) {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium">
+                      <p className={`font-medium transaction-amount ${focusMode ? 'sensitive-data' : ''}`}>
                         {tx.type === 'received' ? '+' : '-'}{tx.amount} {tx.crypto}
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className={`text-sm text-muted-foreground transaction-amount ${focusMode ? 'sensitive-data' : ''}`}>
                         CHF {tx.value.toLocaleString('fr-CH', { minimumFractionDigits: 2 })}
                       </p>
                     </div>

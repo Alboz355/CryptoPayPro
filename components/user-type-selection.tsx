@@ -15,10 +15,10 @@ export function UserTypeSelection({ onUserTypeSelected }: UserTypeSelectionProps
   const { t } = useLanguage()
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-6xl">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4 ios-safe-area">
+      <div className="w-full max-w-6xl ios-content-safe">
         {/* Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-12 ios-header-safe">
           <div className="flex items-center justify-center gap-3 mb-6">
             <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
               <Wallet className="h-8 w-8 text-white" />
@@ -56,7 +56,7 @@ export function UserTypeSelection({ onUserTypeSelected }: UserTypeSelectionProps
         {/* Cards */}
         <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {/* Client Card */}
-          <Card className="group hover:shadow-2xl transition-all duration-300 cursor-pointer border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm hover:scale-105">
+          <Card className="group hover:shadow-2xl transition-all duration-300 cursor-pointer border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm hover:scale-105 card-ios">
             <CardHeader className="text-center pb-4">
               <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                 <User className="h-10 w-10 text-blue-600 dark:text-blue-400" />
@@ -87,7 +87,7 @@ export function UserTypeSelection({ onUserTypeSelected }: UserTypeSelectionProps
 
               <Button
                 onClick={() => onUserTypeSelected("client")}
-                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-3 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-3 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 btn-ios ios-touch-target"
               >
                 <User className="h-5 w-5 mr-2" />
                 Choisir ce profil
@@ -96,7 +96,7 @@ export function UserTypeSelection({ onUserTypeSelected }: UserTypeSelectionProps
           </Card>
 
           {/* Merchant Card */}
-          <Card className="group hover:shadow-2xl transition-all duration-300 cursor-pointer border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm hover:scale-105">
+          <Card className="group hover:shadow-2xl transition-all duration-300 cursor-pointer border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm hover:scale-105 card-ios">
             <CardHeader className="text-center pb-4">
               <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                 <Store className="h-10 w-10 text-purple-600 dark:text-purple-400" />
@@ -127,7 +127,7 @@ export function UserTypeSelection({ onUserTypeSelected }: UserTypeSelectionProps
 
               <Button
                 onClick={() => onUserTypeSelected("merchant")}
-                className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white py-3 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+                className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white py-3 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 btn-ios ios-touch-target"
               >
                 <Store className="h-5 w-5 mr-2" />
                 Choisir ce profil
@@ -137,7 +137,7 @@ export function UserTypeSelection({ onUserTypeSelected }: UserTypeSelectionProps
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-12 text-sm text-gray-500 dark:text-gray-400">
+        <div className="text-center mt-12 text-sm text-gray-500 dark:text-gray-400 ios-bottom-safe">
           <p>🔒 Vos données restent privées et sécurisées sur votre appareil</p>
         </div>
       </div>

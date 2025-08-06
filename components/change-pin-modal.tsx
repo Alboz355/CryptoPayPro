@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { X, Shield, AlertCircle, CheckCircle } from "lucide-react"
+import { X, Shield, AlertCircle, CheckCircle } from 'lucide-react'
 
 interface ChangePinModalProps {
   isOpen: boolean
@@ -22,6 +22,24 @@ export function ChangePinModal({ isOpen, onPinChanged, onCancel }: ChangePinModa
 
   if (!isOpen) return null
 
+  const handleCurrentPinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 4)
+    setCurrentPin(value)
+    setError("")
+  }
+
+  const handleNewPinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 4)
+    setNewPin(value)
+    setError("")
+  }
+
+  const handleConfirmPinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 4)
+    setConfirmPin(value)
+    setError("")
+  }
+
   const handleChangePin = async () => {
     setError("")
 
@@ -31,8 +49,13 @@ export function ChangePinModal({ isOpen, onPinChanged, onCancel }: ChangePinModa
       return
     }
 
-    if (newPin.length < 4) {
-      setError("Le nouveau PIN doit contenir au moins 4 chiffres")
+    if (currentPin.length !== 4) {
+      setError("Le PIN actuel doit contenir 4 chiffres")
+      return
+    }
+
+    if (newPin.length !== 4) {
+      setError("Le nouveau PIN doit contenir 4 chiffres")
       return
     }
 
@@ -43,6 +66,17 @@ export function ChangePinModal({ isOpen, onPinChanged, onCancel }: ChangePinModa
 
     if (currentPin === newPin) {
       setError("Le nouveau PIN doit être différent de l'ancien")
+      return
+    }
+
+    // Vérifier les patterns faibles
+    if (/^(\d)\1+$/.test(newPin)) {
+      setError("Le PIN ne peut pas être composé du même chiffre répété")
+      return
+    }
+
+    if (newPin === "1234" || newPin === "0000" || newPin === "1111") {
+      setError("Ce PIN est trop simple, choisissez-en un autre")
       return
     }
 
@@ -74,7 +108,7 @@ export function ChangePinModal({ isOpen, onPinChanged, onCancel }: ChangePinModa
               </div>
               <div>
                 <CardTitle className="text-xl">Changer le code PIN</CardTitle>
-                <CardDescription>Modifiez votre code PIN de sécurité</CardDescription>
+                <CardDescription>Modifiez votre code PIN de sécurité (4 chiffres)</CardDescription>
               </div>
             </div>
             <Button variant="ghost" size="icon" onClick={onCancel}>
@@ -90,10 +124,16 @@ export function ChangePinModal({ isOpen, onPinChanged, onCancel }: ChangePinModa
               id="current-pin"
               type="password"
               value={currentPin}
-              onChange={(e) => setCurrentPin(e.target.value)}
-              placeholder="Saisissez votre PIN actuel"
-              maxLength={6}
+              onChange={handleCurrentPinChange}
+              placeholder="••••"
+              maxLength={4}
+              className="text-center text-xl font-mono tracking-[0.3em]"
             />
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">
+                {currentPin.length}/4 chiffres
+              </p>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -102,10 +142,16 @@ export function ChangePinModal({ isOpen, onPinChanged, onCancel }: ChangePinModa
               id="new-pin"
               type="password"
               value={newPin}
-              onChange={(e) => setNewPin(e.target.value)}
-              placeholder="Saisissez votre nouveau PIN"
-              maxLength={6}
+              onChange={handleNewPinChange}
+              placeholder="••••"
+              maxLength={4}
+              className="text-center text-xl font-mono tracking-[0.3em]"
             />
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">
+                {newPin.length}/4 chiffres
+              </p>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -114,10 +160,16 @@ export function ChangePinModal({ isOpen, onPinChanged, onCancel }: ChangePinModa
               id="confirm-pin"
               type="password"
               value={confirmPin}
-              onChange={(e) => setConfirmPin(e.target.value)}
-              placeholder="Confirmez votre nouveau PIN"
-              maxLength={6}
+              onChange={handleConfirmPinChange}
+              placeholder="••••"
+              maxLength={4}
+              className="text-center text-xl font-mono tracking-[0.3em]"
             />
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">
+                {confirmPin.length}/4 chiffres
+              </p>
+            </div>
           </div>
 
           {error && (
@@ -135,7 +187,7 @@ export function ChangePinModal({ isOpen, onPinChanged, onCancel }: ChangePinModa
               <div className="text-sm text-blue-700 dark:text-blue-300">
                 <p className="font-medium">Conseils pour un PIN sécurisé :</p>
                 <ul className="mt-1 space-y-1">
-                  <li>• Utilisez au moins 4 chiffres</li>
+                  <li>• Utilisez exactement 4 chiffres</li>
                   <li>• Évitez les séquences simples (1234, 0000)</li>
                   <li>• Ne partagez jamais votre PIN</li>
                 </ul>
@@ -149,7 +201,7 @@ export function ChangePinModal({ isOpen, onPinChanged, onCancel }: ChangePinModa
             </Button>
             <Button
               onClick={handleChangePin}
-              disabled={isChanging || !currentPin || !newPin || !confirmPin}
+              disabled={isChanging || currentPin.length !== 4 || newPin.length !== 4 || confirmPin.length !== 4}
               className="flex-1"
             >
               {isChanging ? "Modification..." : "Changer le PIN"}
