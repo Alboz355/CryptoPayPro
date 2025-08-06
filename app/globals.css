@@ -99,15 +99,11 @@
 .page-container {
   min-height: 100vh;
   height: auto;
+  position: relative;
 }
 
-.page-container.transitioning {
-  overflow: hidden;
-  height: 100vh;
-}
-
-/* Page transitions with proper layering */
-.page-slide-enter {
+/* Professional fade transitions - 200ms duration */
+.page-fade-enter {
   position: fixed;
   top: 0;
   left: 0;
@@ -115,39 +111,35 @@
   bottom: 0;
   z-index: 1000;
   overflow-y: auto;
-  animation: slideInFromRight 600ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+  animation: fadeIn 200ms ease-out forwards;
 }
 
-.page-slide-enter-back {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1000;
-  overflow-y: auto;
-  animation: slideInFromLeft 600ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+.page-fade-exit {
+  opacity: 1;
+  animation: fadeOut 200ms ease-out forwards;
 }
 
 .page-hidden {
   display: none;
 }
 
-@keyframes slideInFromRight {
+/* Fade animations */
+@keyframes fadeIn {
   0% {
-    transform: translateX(100%);
+    opacity: 0;
   }
   100% {
-    transform: translateX(0);
+    opacity: 1;
   }
 }
 
-@keyframes slideInFromLeft {
+@keyframes fadeOut {
   0% {
-    transform: translateX(-100%);
+    opacity: 1;
   }
   100% {
-    transform: translateX(0);
+    opacity: 0;
   }
 }
 

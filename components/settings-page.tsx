@@ -81,7 +81,7 @@ export function SettingsPage({
     
     toast({
       title: checked ? "Transitions activées" : "Transitions désactivées",
-      description: checked ? "Les animations de page sont maintenant activées" : "Navigation instantanée activée",
+      description: checked ? "Effet de fondu professionnel activé (200ms)" : "Navigation instantanée activée",
     })
   }
 
@@ -219,7 +219,7 @@ export function SettingsPage({
                   <div>
                     <Label className="text-foreground">Transitions de pages</Label>
                     <p className="text-sm text-muted-foreground">
-                      Activer les animations lors du changement de page
+                      Effet de fondu professionnel (200ms)
                     </p>
                   </div>
                   <Switch 
@@ -228,7 +228,7 @@ export function SettingsPage({
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Désactiver cette option améliore les performances et rend la navigation instantanée
+                  Désactiver cette option rend la navigation instantanée pour de meilleures performances
                 </p>
               </CardContent>
             </Card>
@@ -425,114 +425,4 @@ export function SettingsPage({
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-foreground">Sécurité</Label>
-                    <p className="text-sm text-muted-foreground">Alertes de sécurité</p>
-                  </div>
-                  <Switch
-                    checked={notifications.security}
-                    onCheckedChange={(checked) => setNotifications({ ...notifications, security: checked })}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-foreground">Marketing</Label>
-                    <p className="text-sm text-muted-foreground">Offres et promotions</p>
-                  </div>
-                  <Switch
-                    checked={notifications.marketing}
-                    onCheckedChange={(checked) => setNotifications({ ...notifications, marketing: checked })}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="advanced" className="space-y-6">
-            {/* Backup & Recovery */}
-            <Card className="bg-card dark:bg-card">
-              <CardHeader>
-                <CardTitle className="text-foreground flex items-center">
-                  <Download className="mr-2 h-5 w-5" />
-                  Sauvegarde et récupération
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-foreground">Exporter le portefeuille</Label>
-                    <p className="text-sm text-muted-foreground">Sauvegarder vos données</p>
-                  </div>
-                  <Button variant="outline" onClick={exportWallet} className="bg-background dark:bg-background">
-                    <Download className="mr-2 h-4 w-4" />
-                    {t.common.export}
-                  </Button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-foreground">Support technique</Label>
-                    <p className="text-sm text-muted-foreground">Contacter l'assistance</p>
-                  </div>
-                  <Button variant="outline" onClick={onShowSupport} className="bg-background dark:bg-background">
-                    <Globe className="mr-2 h-4 w-4" />
-                    Support
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Danger Zone */}
-            <Card className="bg-card dark:bg-card border-red-200 dark:border-red-800">
-              <CardHeader>
-                <CardTitle className="text-foreground flex items-center text-red-600 dark:text-red-400">
-                  <Trash2 className="mr-2 h-5 w-5" />
-                  {t.settings.dangerZone.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-                  <h4 className="font-semibold text-red-800 dark:text-red-400 mb-2">
-                    {t.settings.dangerZone.deleteWallet}
-                  </h4>
-                  <p className="text-sm text-red-700 dark:text-red-300 mb-4">
-                    {t.settings.dangerZone.deleteDescription} Assurez-vous d'avoir sauvegardé votre phrase de
-                    récupération.
-                  </p>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="w-full">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Supprimer définitivement le portefeuille
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent className="bg-card dark:bg-card">
-                      <AlertDialogHeader>
-                        <AlertDialogTitle className="text-foreground">
-                          {t.settings.dangerZone.deleteConfirm}
-                        </AlertDialogTitle>
-                        <AlertDialogDescription className="text-muted-foreground">
-                          Cette action ne peut pas être annulée. Cela supprimera définitivement votre portefeuille et
-                          toutes les données associées de cet appareil.
-                          <br />
-                          <br />
-                          <strong>Assurez-vous d'avoir sauvegardé votre phrase de récupération</strong> avant de
-                          continuer, sinon vous perdrez l'accès à vos cryptomonnaies.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel className="bg-background dark:bg-background">
-                          {t.common.cancel}
-                        </AlertDialogCancel>
-                        <AlertDialogAction onClick={deleteWallet} className="bg-red-600 hover:bg-red-700 text-white">
-                          Oui, supprimer définitivement
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
-  )
-}
+                    <p className="text-sm

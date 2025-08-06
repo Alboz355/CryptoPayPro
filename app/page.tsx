@@ -69,28 +69,6 @@ export default function CryptoWalletApp() {
   const [tpeAccessGranted, setTpeAccessGranted] = useState(false)
   const [pageTransitionsEnabled, setPageTransitionsEnabled] = useState(true)
   const [isTransitioning, setIsTransitioning] = useState(false)
-  const [transitionDirection, setTransitionDirection] = useState<'forward' | 'backward'>('forward')
-
-  // Define page hierarchy for navigation logic
-  const pageHierarchy: Record<AppState, AppState | null> = {
-    "onboarding": null,
-    "pin-setup": "onboarding",
-    "app-presentation": "pin-setup",
-    "dashboard": null,
-    "send": "dashboard",
-    "receive": "dashboard",
-    "settings": "dashboard",
-    "history": "dashboard",
-    "tpe": "dashboard",
-    "tpe-search": "tpe",
-    "tpe-billing": "tpe",
-    "tpe-payment": "tpe",
-    "tpe-conversion": "tpe",
-    "tpe-history": "tpe",
-    "tpe-settings": "tpe",
-    "tpe-vat-management": "tpe",
-    "tpe-statistics": "tpe"
-  }
 
   useEffect(() => {
     // Load page transitions setting
@@ -145,7 +123,7 @@ export default function CryptoWalletApp() {
     
     return () => {
       clearInterval(interval)
-      window.removeEventListener(interval)
+      window.removeEventListener('storage', handleStorageChange)
     }
   }, [])
 
@@ -179,36 +157,22 @@ export default function CryptoWalletApp() {
   const navigateToPage = (page: AppState) => {
     if (page === currentPage || isTransitioning) return
 
-    // Determine direction
-    const currentParent = pageHierarchy[currentPage]
-    const targetParent = pageHierarchy[page]
-    
-    let direction: 'forward' | 'backward' = 'forward'
-    
-    if (currentParent === page) {
-      direction = 'backward'
-    } else if (targetParent === currentPage) {
-      direction = 'forward'
-    }
-
-    setTransitionDirection(direction)
-
     // If transitions are disabled, navigate immediately
     if (!pageTransitionsEnabled) {
       setCurrentPage(page)
       return
     }
 
-    // Animated navigation
+    // Professional fade transition - 200ms
     setIsTransitioning(true)
     setNextPage(page)
     
-    // Complete transition after animation
+    // Complete transition after fade animation
     setTimeout(() => {
       setCurrentPage(page)
       setNextPage(null)
       setIsTransitioning(false)
-    }, 600) // Match CSS animation duration
+    }, 200) // Match CSS animation duration
   }
 
   const handleNavigate = (page: AppState) => {
@@ -348,19 +312,15 @@ export default function CryptoWalletApp() {
 
   return (
     <ErrorBoundary>
-      <div className={`page-container ${isTransitioning ? 'transitioning' : ''}`}>
+      <div className="page-container">
         {/* Current page - hidden during transition */}
         <div className={`bg-background text-foreground ${isTransitioning ? 'page-hidden' : ''}`}>
           {renderPage(currentPage)}
         </div>
 
-        {/* Next page - visible during transition with animation */}
+        {/* Next page - visible during transition with fade animation */}
         {nextPage && isTransitioning && pageTransitionsEnabled && (
-          <div 
-            className={`bg-background text-foreground ${
-              transitionDirection === 'forward' ? 'page-slide-enter' : 'page-slide-enter-back'
-            }`}
-          >
+          <div className="bg-background text-foreground page-fade-enter">
             {renderPage(nextPage)}
           </div>
         )}
